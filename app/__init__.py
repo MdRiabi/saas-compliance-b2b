@@ -1,18 +1,13 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import os
 from dotenv import load_dotenv
-from flask import render_template
-
-    
 
 load_dotenv()
 
 db = SQLAlchemy()
 migrate = Migrate()
-
-
 
 def create_app():
     app = Flask(__name__)

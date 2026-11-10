@@ -15,67 +15,63 @@ def _flag(value):
 
 @rgpd_bp.route('/audit', methods=['POST'])
 def run_audit():
-    """ 
-    Module 1 : Évaluation automatique de la conformité RGPD 
-    """
-    data = request.get_json(silent=True) or request.form
+    data = request.json or request.form
 
     tenant_id = data.get('tenant_id', 'pme-demo-01')
     company_name = data.get('company_name', 'PME Demo')
     processing_name = data.get('processing_name', 'Gestion du personnel')
+    data_category = data.get('data_category', 'Standard')
     
-    # Critères d'évaluation RGPD (Barème sur 100 points)
     score = 0
     checks = []
+    recos = []
 
-    # Check 1: Base légale définie (25 pts)
-    if _flag(data.get('has_legal_basis')):
+    # 1. Base légale (25 pts)
+    if data.get('has_legal_basis'):
         score += 25
-        checks.append({"item": "Base légale", "status": "CONFORME", "points": 25})
+        checks.append({"item": "Base légale (Art. 6)", "status": "CONFORME", "points": 25})
     else:
-        checks.append({"item": "Base légale", "status": "NON_CONFORME", "points": 0})
+        checks.append({"item": "Base légale (Art. 6)", "status": "NON_CONFORME", "points": 0})
+        recos.append("Définir une base légale claire (ex: consentement, obligation légale ou intérêt légitime).")
 
-    # Check 2: Information des personnes / Consentement (25 pts)
-    if _flag(data.get('has_privacy_notice')):
+    # 2. Information des personnes (25 pts)
+    if data.get('has_privacy_notice'):
         score += 25
         checks.append({"item": "Mention d'information (Art. 13/14)", "status": "CONFORME", "points": 25})
     else:
         checks.append({"item": "Mention d'information (Art. 13/14)", "status": "NON_CONFORME", "points": 0})
+        recos.append("Mettre en place une politique de confidentialité accessible aux personnes concernées.")
 
-    # Check 3: Durée de conservation limitée (25 pts)
-    if _flag(data.get('has_retention_policy')):
+    # 3. Durée de conservation (25 pts)
+    if data.get('has_retention_policy'):
         score += 25
         checks.append({"item": "Politique de conservation", "status": "CONFORME", "points": 25})
     else:
         checks.append({"item": "Politique de conservation", "status": "NON_CONFORME", "points": 0})
+        recos.append("Fixer une durée de conservation précise en accord avec les recommandations de la CNIL.")
 
-    # Check 4: Mesures de sécurité / Chiffrement (25 pts)
-    if _flag(data.get('has_security_measures')):
+    # 4. Sécurité technique & Chiffrement (25 pts)
+    if data.get('has_security_measures'):
         score += 25
-        checks.append({"item": "Sécurité & Chiffrement", "status": "CONFORME", "points": 25})
+        checks.append({"item": "Sécurité & Chiffrement AWS", "status": "CONFORME", "points": 25})
     else:
-        checks.append({"item": "Sécurité & Chiffrement", "status": "NON_CONFORME", "points": 0})
+        checks.append({"item": "Sécurité & Chiffrement AWS", "status": "NON_CONFORME", "points": 0})
+        recos.append("Activer le chiffrement des données au repos (KMS / SSE-S3) et le contrôle d'accès RBAC.")
 
     status_eval = "CONFORME" if score >= 75 else "À RISQUE"
 
-    # Enregistrement en base de données avec isolation tenant_id
+    # Enregistrement base de données
     audit_record = RgpdAudit(
         tenant_id=tenant_id,
         company_name=company_name,
         data_processing_name=processing_name,
+        data_category=data_category,
         compliance_score=float(score),
-        status=status_eval
+        status=status_eval,
+        recommendations=" | ".join(recos) if recos else "Aucune recommandation majeure."
     )
     
-    # Enregistrement du log d'audit interne
-    log_entry = AuditLog(
-        tenant_id=tenant_id,
-        user_email=data.get('user_email', 'admin@pme.com'),
-        action=f"Audit RGPD exécuté pour: {processing_name} (Score: {score}%)"
-    )
-
     db.session.add(audit_record)
-    db.session.add(log_entry)
     db.session.commit()
 
     return jsonify({
@@ -85,6 +81,7 @@ def run_audit():
         "compliance_score": f"{score}%",
         "evaluation": status_eval,
         "details": checks,
+        "recommendations": recos,
         "audit_id": audit_record.id
     }), 201
 
@@ -97,8 +94,10 @@ def list_audits(tenant_id):
             "id": a.id,
             "company_name": a.company_name,
             "processing_name": a.data_processing_name,
+            "data_category": a.data_category,
             "score": a.compliance_score,
             "status": a.status,
+            "recommendations": a.recommendations,
             "created_at": a.created_at.strftime('%Y-%m-%d %H:%M:%S')
         } for a in audits
     ]

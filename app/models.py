@@ -7,12 +7,14 @@ class TenantModel(db.Model):
     tenant_id = db.Column(db.String(64), nullable=False, index=True)
 
 class RgpdAudit(TenantModel):
-    """ Module 1 : Enregistrement des audits RGPD par client """
+    """ Module 1 : Enregistrement des audits RGPD approfondis par client """
     id = db.Column(db.Integer, primary_key=True)
     company_name = db.Column(db.String(120), nullable=False)
     data_processing_name = db.Column(db.String(200), nullable=False)
+    data_category = db.Column(db.String(100), default="Standard")  # Standard ou Sensible (Art. 9)
     compliance_score = db.Column(db.Float, default=0.0)
     status = db.Column(db.String(50), default="En cours")
+    recommendations = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class AuditLog(TenantModel):
