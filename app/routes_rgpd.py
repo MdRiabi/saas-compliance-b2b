@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from app import db
 from app.models import RgpdAudit, AuditLog
 
@@ -20,6 +20,10 @@ from app.models import RgpdAudit, AuditLog
 from app.utils_aws import upload_audit_report_to_s3
 
 rgpd_bp = Blueprint('rgpd', __name__, url_prefix='/rgpd')
+
+@rgpd_bp.route('/audit', methods=['GET'])
+def audit_page():
+    return render_template('audit-rgpd-module1.html')
 
 @rgpd_bp.route('/audit', methods=['POST'])
 def run_audit():

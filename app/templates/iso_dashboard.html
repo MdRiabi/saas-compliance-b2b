@@ -13,7 +13,7 @@
                 <h4 class="text-info">SecureFrame</h4>
                 <hr>
                 <ul class="nav flex-column">
-                    <li class="nav-item mb-2"><a href="/" class="nav-link text-white">1. Audit RGPD</a></li>
+                    <li class="nav-item mb-2"><a href="{{ url_for('rgpd.audit_page') }}" class="nav-link text-white">1. Audit RGPD</a></li>
                     <li class="nav-item mb-2"><a href="/iso27001" class="nav-link active text-info">2. Checklist ISO 27001</a></li>
                     <li class="nav-item mb-2"><a href="#" class="nav-link text-white">3. Politiques Sécurité</a></li>
                 </ul>
@@ -21,38 +21,153 @@
 
             <!-- Main content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
-                <h2>Module 2 : Conformité & Annexe A ISO 27001</h2>
-                <hr>
-                
-                <div class="card shadow-sm p-4 mb-4">
-                    <h5 class="card-title text-primary">Suivi des Mesures de Sécurité (Annex A)</h5>
-                    <table class="table table-striped mt-3">
-                        <thead>
-                            <tr>
-                                <th>Domaine</th>
-                                <th>Intitulé du Contrôle</th>
-                                <th>Statut</th>
-                                <th>Justificatifs</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for control in controls %}
-                            <tr>
-                                <td><strong>{{ control.control_domain }}</strong></td>
-                                <td>{{ control.control_title }}</td>
-                                <td>
-                                    <span class="badge {% if control.implementation_status == 'Implémenté' %}bg-success{% else %}bg-warning text-dark{% endif %}">
-                                        {{ control.implementation_status }}
-                                    </span>
-                                </td>
-                                <td>{{ control.evidence_notes }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                {% set total_controls = controls|length %}
+                {% set implemented_controls = controls|selectattr('implementation_status', 'equalto', 'Implémenté')|list|length %}
+                {% set partial_controls = controls|selectattr('implementation_status', 'equalto', 'Partiel')|list|length %}
+                {% set progress = ((implemented_controls / total_controls) * 100)|round|int if total_controls else 0 %}
+
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                    <div>
+                        <p class="text-uppercase text-primary fw-semibold small mb-1">Module 2 · Sécurité de l’information</p>
+                        <h1 class="h2 mb-1">Checklist ISO 27001</h1>
+                        <p class="text-secondary mb-0">Suivez la mise en œuvre des mesures de sécurité et documentez vos preuves.</p>
+                    </div>
+                    <span class="badge text-bg-light border text-secondary fs-6">Tenant : {{ tenant_id }}</span>
                 </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <section class="row g-3 mb-4" aria-label="Résumé de conformité">
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <p class="text-secondary small mb-1">Contrôles suivis</p>
+                                <p class="h3 mb-0">{{ total_controls }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <p class="text-secondary small mb-1">Implémentés</p>
+                                <p class="h3 text-success mb-0">{{ implemented_controls }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <p class="text-secondary small mb-1">Partiellement implémentés</p>
+                                <p class="h3 text-warning mb-0">{{ partial_controls }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <p class="text-secondary small mb-2">Progression</p>
+                                <p class="h3 mb-2">{{ progress }} %</p>
+                                <div class="progress" role="progressbar" aria-label="Progression des contrôles implémentés" aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" style="width: {{ progress }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h2 class="h5 mb-1">Ajouter un contrôle</h2>
+                        <p class="text-secondary small mb-3">Enregistrez une mesure de sécurité et son état d’avancement.</p>
+                        <form method="post" action="{{ url_for('iso.iso_dashboard') }}">
+                            <input type="hidden" name="tenant_id" value="{{ tenant_id }}">
+                            <input type="hidden" name="company_name" value="{{ controls[0].company_name if controls else 'Acme Corp' }}">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="control_domain" class="form-label">Domaine ISO</label>
+                                    <input class="form-control" id="control_domain" name="control_domain" type="text" placeholder="Ex. A.5 — Mesures organisationnelles" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="control_title" class="form-label">Intitulé du contrôle</label>
+                                    <input class="form-control" id="control_title" name="control_title" type="text" placeholder="Ex. Politique de sécurité de l’information" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="implementation_status" class="form-label">État d’avancement</label>
+                                    <select class="form-select" id="implementation_status" name="implementation_status" required>
+                                        <option value="Non implémenté">Non implémenté</option>
+                                        <option value="Partiel">Partiellement implémenté</option>
+                                        <option value="Implémenté">Implémenté</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="evidence_notes" class="form-label">Preuves et notes</label>
+                                    <textarea class="form-control" id="evidence_notes" name="evidence_notes" rows="2" placeholder="Lien vers une procédure, un document ou une action à mener"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary" type="submit">Ajouter le contrôle</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
+                            <div>
+                                <h2 class="h5 mb-1">Suivi des contrôles</h2>
+                                <p class="text-secondary small mb-0">Mesures de sécurité et justificatifs associés.</p>
+                            </div>
+                            <span class="badge text-bg-light border">{{ total_controls }} contrôle(s)</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">Domaine</th>
+                                        <th scope="col">Contrôle</th>
+                                        <th scope="col">Statut</th>
+                                        <th scope="col">Preuves et notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for control in controls %}
+                                        <tr>
+                                            <td class="fw-semibold">{{ control.control_domain }}</td>
+                                            <td>{{ control.control_title }}</td>
+                                            <td>
+                                                {% if control.implementation_status == 'Implémenté' %}
+                                                    <span class="badge text-bg-success">{{ control.implementation_status }}</span>
+                                                {% elif control.implementation_status == 'Partiel' %}
+                                                    <span class="badge text-bg-warning">{{ control.implementation_status }}</span>
+                                                {% else %}
+                                                    <span class="badge text-bg-secondary">{{ control.implementation_status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-secondary">{{ control.evidence_notes or 'À documenter' }}</td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-secondary py-4">Aucun contrôle à afficher.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

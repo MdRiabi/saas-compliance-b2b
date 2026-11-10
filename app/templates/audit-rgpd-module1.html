@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit RGPD Automatisé — Module 1 · Plateforme Conformité PME</title>
+<style>
+:root{
+  --bg:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#64748b;
+  --primary:#1e3a5f; --accent:#2563eb; --accent-soft:#eff6ff;
+  --ok:#16a34a; --ok-soft:#f0fdf4; --warn:#d97706; --warn-soft:#fffbeb;
+  --high:#ea580c; --high-soft:#fff7ed; --crit:#dc2626; --crit-soft:#fef2f2;
+  --radius:12px; --shadow:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14.5px;line-height:1.55}
+#app{display:grid;grid-template-columns:270px 1fr;min-height:100vh}
+
+/* ---------- Sidebar ---------- */
+#sidebar{background:var(--primary);color:#cbd5e1;padding:22px 18px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{color:#fff}
+.brand .b1{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#93b4d8;font-weight:600}
+.brand .b2{font-size:18px;font-weight:700;color:#fff;margin-top:2px;line-height:1.25}
+.brand .b3{font-size:11.5px;color:#7ea1c9;margin-top:4px}
+.stepper{list-style:none;display:flex;flex-direction:column;gap:4px}
+.stepper li{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:9px;cursor:pointer;color:#b7c9dd;font-size:13.5px;transition:background .15s}
+.stepper li:hover{background:rgba(255,255,255,.07)}
+.stepper li .num{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid #4d6b8f;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#9fb9d6}
+.stepper li.active{background:rgba(37,99,235,.28);color:#fff}
+.stepper li.active .num{background:var(--accent);border-color:var(--accent);color:#fff}
+.stepper li.done .num{background:#16a34a;border-color:#16a34a;color:#fff}
+.stepper li .lbl b{display:block;font-weight:600}
+.stepper li .lbl small{font-size:11px;color:#7ea1c9}
+.side-score{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px}
+.side-score .t{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#93b4d8;font-weight:600}
+.side-score .v{font-size:22px;font-weight:700;color:#fff;margin-top:2px}
+.side-score .bar{height:5px;background:rgba(255,255,255,.15);border-radius:3px;margin-top:8px;overflow:hidden}
+.side-score .bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
+.side-actions{display:flex;flex-direction:column;gap:8px}
+.side-actions button{width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#dbe7f3;font-size:13px;cursor:pointer;font-weight:500}
+.side-actions button:hover{background:rgba(255,255,255,.08)}
+.side-actions button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.side-foot{margin-top:auto;font-size:11px;color:#6f93b8;line-height:1.5}
+
+/* ---------- Main ---------- */
+#main{padding:30px 38px 60px;max-width:1180px}
+.screen{display:none;animation:fade .25s}
+.screen.visible{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.screen-head{margin-bottom:22px}
+.screen-head .kicker{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.screen-head h1{font-size:23px;margin:4px 0 4px;font-weight:700}
+.screen-head p{color:var(--muted);max-width:760px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px}
+.card h2{font-size:16px;margin-bottom:4px;font-weight:700}
+.card .sub{font-size:13px;color:var(--muted);margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:#334155}
+label.f small{font-weight:400;color:var(--muted)}
+input[type=text],input[type=date],select,textarea{font:inherit;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:var(--text);width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid #bfdbfe;border-color:var(--accent)}
+textarea{resize:vertical;min-height:44px}
+.btn{font:inherit;padding:10px 18px;border-radius:9px;border:1px solid transparent;cursor:pointer;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.primary:hover{background:#1d4ed8}
+.btn.ghost{background:#fff;border-color:#cbd5e1;color:#334155}
+.btn.ghost:hover{background:#f8fafc}
+.btn.small{padding:6px 12px;font-size:12.5px;border-radius:7px}
+.btn.danger{background:#fff;border-color:#fecaca;color:var(--crit)}
+.btn.danger:hover{background:var(--crit-soft)}
+.navbar{display:flex;justify-content:space-between;gap:12px;margin-top:26px}
+.hint{font-size:12.5px;color:var(--muted);background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:9px 12px;margin-top:14px}
+
+/* ---------- Accueil ---------- */
+.hero{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 120%);border-radius:16px;color:#fff;padding:34px 36px;margin-bottom:22px}
+.hero h1{font-size:26px;font-weight:800}
+.hero p{color:#c7d9ef;margin-top:8px;max-width:640px}
+.hero .tags{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.hero .tag{font-size:11.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:4px 11px;border-radius:99px}
+.choice{border:1.5px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;background:#fff;transition:border .15s, box-shadow .15s;display:block}
+.choice:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.choice .ic{font-size:24px}
+.choice h3{font-size:15.5px;margin:8px 0 5px}
+.choice p{font-size:13px;color:var(--muted)}
+.choice.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.choice.disabled:hover{border-color:var(--border);box-shadow:none}
+.motor{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.motor .m{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px}
+.motor .m b{display:block;font-size:13.5px;margin-bottom:4px}
+.motor .m span{font-size:12.5px;color:var(--muted)}
+
+/* ---------- Badges & chips ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.high{background:var(--high-soft);color:var(--high)}
+.badge.crit{background:var(--crit-soft);color:var(--crit)}
+.badge.info{background:var(--accent-soft);color:var(--accent)}
+.badge.gray{background:#f1f5f9;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-size:12px;padding:5px 11px;border-radius:99px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;user-select:none}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* ---------- Tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:9px 10px;border-bottom:2px solid var(--border)}
+td{padding:11px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.tbl-wrap{overflow-x:auto}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13.5px;background:#fafcfe;border:1px dashed #cbd5e1;border-radius:10px}
+
+/* ---------- Questionnaire ---------- */
+.q-domain{border:1px solid var(--border);border-radius:var(--radius);background:#fff;margin-bottom:14px;overflow:hidden}
+.q-domain>header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 18px;cursor:pointer;user-select:none}
+.q-domain>header:hover{background:#f8fafc}
+.q-domain h3{font-size:15px}
+.q-domain .meta{display:flex;align-items:center;gap:10px}
+.q-domain .dbar{width:130px;height:6px;background:#eef2f7;border-radius:4px;overflow:hidden}
+.q-domain .dbar i{display:block;height:100%;border-radius:4px;transition:width .3s}
+.q-domain .body{padding:4px 18px 18px;border-top:1px solid var(--border)}
+.q-item{padding:15px 0;border-bottom:1px dashed #e2e8f0}
+.q-item:last-child{border-bottom:none}
+.q-item .q-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.q-item .q-text{font-weight:600;font-size:14px}
+.q-item .q-ref{font-size:11.5px;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:5px;font-weight:600;white-space:nowrap;margin-top:2px}
+.q-item .q-help{font-size:12.5px;color:var(--muted);margin-top:4px;max-width:640px}
+.seg{display:inline-flex;border:1.5px solid #cbd5e1;border-radius:9px;overflow:hidden;flex-wrap:wrap}
+.seg label{display:flex;align-items:center;gap:6px;padding:7px 13px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);border-right:1.5px solid #cbd5e1;background:#fff;user-select:none}
+.seg label:last-child{border-right:none}
+.seg input{display:none}
+.seg label:has(input:checked){background:var(--accent);color:#fff}
+.seg label:has(input[value=c]:checked){background:var(--ok)}
+.seg label:has(input[value=pc]:checked){background:var(--warn)}
+.seg label:has(input[value=nc]:checked){background:var(--crit)}
+.seg label:has(input[value=na]:checked){background:#94a3b8}
+.q-ans{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:11px;flex-wrap:wrap}
+.q-ev{margin-top:9px;display:flex;gap:8px;align-items:center}
+.q-ev input{font-size:12.5px;padding:7px 10px}
+.q-ev .lbl{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+.q-prog{position:sticky;top:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:13px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);z-index:5}
+.q-prog .track{flex:1;height:7px;background:#eef2f7;border-radius:4px;overflow:hidden}
+.q-prog .track i{display:block;height:100%;background:linear-gradient(90deg,#2563eb,#16a34a);border-radius:4px;transition:width .3s}
+.q-prog .txt{font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.cond-flag{font-size:11px;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 8px;border-radius:5px;font-weight:600}
+
+/* ---------- Résultats ---------- */
+.res-hero{display:grid;grid-template-columns:250px 1fr;gap:26px;align-items:center}
+.gauge{position:relative;width:200px;height:200px;margin:0 auto}
+.gauge svg{transform:rotate(-90deg)}
+.gauge .gv{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge .gv b{font-size:40px;font-weight:800;line-height:1}
+.gauge .gv span{font-size:12px;color:var(--muted);margin-top:4px}
+.note-lbl{display:inline-block;padding:6px 14px;border-radius:9px;font-weight:800;font-size:15px}
+.dom-row{display:grid;grid-template-columns:230px 1fr 62px 96px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.dom-row:last-child{border-bottom:none}
+.dom-row .nm{font-weight:600;font-size:13.5px}
+.dom-row .nm small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.dom-row .tk{height:9px;background:#eef2f7;border-radius:5px;overflow:hidden}
+.dom-row .tk i{display:block;height:100%;border-radius:5px;transition:width .5s}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+.stat{border-radius:10px;padding:13px 15px;border:1px solid var(--border)}
+.stat b{font-size:22px;font-weight:800;display:block}
+.stat span{font-size:12px;color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters button{font-size:12.5px;padding:6px 13px;border-radius:99px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:600;color:var(--muted)}
+.filters button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.finding{border:1px solid var(--border);border-left:4px solid var(--muted);border-radius:10px;padding:15px 17px;margin-bottom:12px;background:#fff}
+.finding.crit{border-left-color:var(--crit)}
+.finding.high{border-left-color:var(--high)}
+.finding.medium{border-left-color:var(--warn)}
+.finding .f-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap}
+.finding h4{font-size:14px}
+.finding .f-dom{font-size:11.5px;color:var(--muted)}
+.finding dl{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:13px;margin-top:8px}
+.finding dt{font-weight:700;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.finding dd{color:#334155}
+.synthese{font-size:14px;color:#334155;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:16px 18px;line-height:1.7}
+.synthese b{color:var(--text)}
+.warn-proof{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border:1px solid #fde68a;border-radius:8px;padding:10px 13px;margin-top:12px}
+
+/* ---------- Plan d'action ---------- */
+.horizon{margin-bottom:20px}
+.horizon .h-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.horizon .h-head h3{font-size:14.5px}
+.action-row{display:grid;grid-template-columns:1fr 170px 120px 130px;gap:12px;align-items:center;padding:11px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff}
+.action-row .a-t{font-size:13px;font-weight:600}
+.action-row .a-t small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px}
+.action-row select,.action-row input{font-size:12.5px;padding:6px 9px}
+.proj{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;border-radius:12px;padding:16px 20px}
+.proj .p-val{font-size:26px;font-weight:800;color:var(--ok)}
+.proj .p-arrow{font-size:22px;color:var(--muted)}
+.proj .p-val.before{color:var(--crit)}
+.export-bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#0f172a;color:#fff;padding:11px 20px;border-radius:10px;font-size:13.5px;font-weight:600;opacity:0;transition:all .3s;z-index:99;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Print (rapport) ---------- */
+#print-report{display:none}
+@media print{
+  body{background:#fff}
+  #app,#toast{display:none!important}
+  #print-report{display:block;padding:0;font-size:12px}
+  #print-report h1{font-size:19px;margin:14px 0 6px}
+  #print-report h2{font-size:15px;margin:18px 0 8px;border-bottom:2px solid #0f172a;padding-bottom:4px}
+  #print-report h3{font-size:13px;margin:12px 0 5px}
+  #print-report table{font-size:11px;margin:8px 0}
+  #print-report .p-head{text-align:center;border-bottom:3px double #0f172a;padding-bottom:14px;margin-bottom:10px}
+  #print-report .p-find{border:1px solid #94a3b8;border-radius:6px;padding:8px 10px;margin:7px 0;page-break-inside:avoid}
+  #print-report .pgbreak{page-break-before:always}
+}
+@media (max-width:960px){
+  #app{grid-template-columns:1fr}
+  #sidebar{position:static;height:auto}
+  .grid2,.grid3,.motor,.res-hero,.stat-grid{grid-template-columns:1fr}
+  .action-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="b1">Plateforme B2B</div>
+      <div class="b2">RGPD &amp; ISO 27001</div>
+      <div class="b3">Module 1 — Audit RGPD automatisé</div>
+    </div>
+    <ol class="stepper" id="stepper"></ol>
+    <div class="side-score" id="sideScore">
+      <div class="t">Score de conformité</div>
+      <div class="v" id="sideScoreVal">—</div>
+      <div class="bar"><i id="sideScoreBar" style="width:0%"></i></div>
+      <div class="t" style="margin-top:7px;font-weight:400;letter-spacing:0;text-transform:none" id="sideScoreLbl">Aucun audit lancé</div>
+    </div>
+    <div class="side-actions">
+      <button class="primary" id="btnDemo">⚡ Charger le scénario réel</button>
+      <button id="btnReset">↺ Réinitialiser</button>
+    </div>
+    <div class="side-foot">Prototype fonctionnel — données enregistrées localement (navigateur). Référentiel : RGPD (UE) 2016/679, aligné CNIL &amp; ISO 27701.</div>
+  </aside>
+
+  <main id="main">
+    <!-- ═══ Écran 0 : Accueil ═══ -->
+    <section class="screen" id="screen-0">
+      <div class="hero">
+        <h1>Audit RGPD automatisé</h1>
+        <p>Évaluez la conformité RGPD de votre PME en 5 étapes : registre des traitements, questionnaire dynamique pondéré, score par domaine, synthèse des écarts et plan d'action priorisé — avec preuves, traçabilité et rapport exportable.</p>
+        <div class="tags">
+          <span class="tag">27 critères · 8 domaines</span>
+          <span class="tag">Barème pondéré</span>
+          <span class="tag">Questions conditionnelles</span>
+          <span class="tag">Constats Art. RGPD</span>
+          <span class="tag">Plan d'action priorisé</span>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="choice" id="startNew">
+          <div class="ic">📝</div>
+          <h3>Démarrer un nouvel audit</h3>
+          <p>Depuis zéro : contexte de l'entreprise, registre des traitements, puis questionnaire d'évaluation.</p>
+        </div>
+        <div class="choice" id="startDemo">
+          <div class="ic">🏢</div>
+          <h3>Scénario réel : Atelier Vermeil</h3>
+          <p>PME e-commerce (12 salariés) — dossier complet pré-rempli avec traitements, réponses, écarts et plan d'action. Idéal pour visualiser le résultat final.</p>
+        </div>
+        <div class="choice disabled" id="startResume">
+          <div class="ic">📂</div>
+          <h3>Reprendre l'audit en cours</h3>
+          <p>Sauvegarde locale détectée — reprenez là où vous vous étiez arrêté.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Comment fonctionne le moteur d'évaluation</h2>
+        <p class="sub">Chaque critère est pondéré (1 à 3) selon sa criticité RGPD ; la réponse distingue conforme, partiellement conforme, non conforme et non applicable.</p>
+        <div class="motor">
+          <div class="m"><b>1 · Pondération</b><span>Critère de poids 3 (ex. : MFA, base légale) pèse 3× plus qu'un critère de poids 1 dans le score.</span></div>
+          <div class="m"><b>2 · Score par domaine</b><span>Conforme = 100 % des points, partiel = 50 %, non conforme = 0 %. Les « non applicable » sont exclus du calcul.</span></div>
+          <div class="m"><b>3 · Écarts &amp; constats</b><span>Chaque écart génère un constat (article, risque, recommandation, priorité) qui alimente le plan d'action.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 1 : Contexte ═══ -->
+    <section class="screen" id="screen-1">
+      <div class="screen-head">
+        <div class="kicker">Étape 1 / 5</div>
+        <h1>Contexte de l'audit</h1>
+        <p>Identification de l'entreprise auditée et du périmètre. Ces informations figurent en en-tête du rapport d'audit.</p>
+      </div>
+      <div class="card">
+        <h2>Entreprise auditée</h2>
+        <p class="sub">Les champs marqués * sont requis pour générer le rapport.</p>
+        <div class="grid2">
+          <label class="f">Raison sociale *</label>
+          <label class="f">SIREN</label>
+          <input type="text" id="f_name" placeholder="Ex. Atelier Vermeil SARL">
+          <input type="text" id="f_siren" placeholder="9 chiffres" maxlength="9">
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Secteur d'activité</label>
+          <label class="f">Effectif</label>
+          <select id="f_sector">
+            <option value="">— Sélectionner —</option>
+            <option>E-commerce / Vente à distance</option>
+            <option>Industrie</option>
+            <option>Santé</option>
+            <option>Services B2B</option>
+            <option>Conseil / Services professionnels</option>
+            <option>Autre</option>
+          </select>
+          <select id="f_size">
+            <option value="">— Sélectionner —</option>
+            <option>Moins de 10 salariés</option>
+            <option>10 à 49 salariés</option>
+            <option>50 à 249 salariés</option>
+          </select>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Référent RGPD / DPO <small>nom et fonction</small></label>
+          <label class="f">Statut de la fonction</label>
+          <input type="text" id="f_dpoName" placeholder="Ex. Claire Le Goff, Responsable RH">
+          <select id="f_dpoStatus">
+            <option value="">— Sélectionner —</option>
+            <option>DPO désigné (obligation art. 37)</option>
+            <option>Référent RGPD interne (volontaire)</option>
+            <option>Externalisé (prestataire)</option>
+            <option>Aucune personne désignée</option>
+          </select>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Auditeur / validateur *</label>
+          <label class="f">Date de l'audit</label>
+          <input type="text" id="f_auditor" placeholder="Ex. M. Dupont — Cabinet AuditPro">
+          <input type="date" id="f_date">
+        </div>
+      </div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Retour à l'accueil</button>
+        <button class="btn primary" data-nav="next">Étape 2 : Registre des traitements →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 2 : Registre ═══ -->
+    <section class="screen" id="screen-2">
+      <div class="screen-head">
+        <div class="kicker">Étape 2 / 5</div>
+        <h1>Registre des traitements <small style="font-weight:400;color:var(--muted);font-size:14px">(art. 30 RGPD)</small></h1>
+        <p>Documentez chaque traitement de données. Le moteur adapte ensuite le questionnaire : un traitement fondé sur le consentement active les critères « consentement &amp; prospection », un transfert hors UE active les critères « transferts ».</p>
+      </div>
+      <div class="card">
+        <h2>Traitements documentés</h2>
+        <p class="sub" id="regCount"></p>
+        <div id="registryList"></div>
+      </div>
+      <div class="card">
+        <h2 id="pfTitle">Ajouter un traitement</h2>
+        <p class="sub">Tous les champs alimentent le registre et le rapport art. 30.</p>
+        <div class="grid2">
+          <label class="f">Nom du traitement *</label>
+          <label class="f">Base légale (art. 6) *</label>
+          <input type="text" id="p_name" placeholder="Ex. Gestion des clients et commandes">
+          <select id="p_legalBasis">
+            <option value="consent">Consentement (a)</option>
+            <option value="contract">Exécution du contrat (b)</option>
+            <option value="legal">Obligation légale (c)</option>
+            <option value="vital">Sauvegarde des intérêts vitaux (d)</option>
+            <option value="public">Mission d'intérêt public (e)</option>
+            <option value="legitimate">Intérêt légitime (f)</option>
+          </select>
+        </div>
+        <div style="margin-top:14px">
+          <label class="f">Finalité(s) *</label>
+          <input type="text" id="p_purpose" placeholder="Ex. Gestion des comptes clients, commandes, livraison, facturation et service après-vente" style="margin-top:5px">
+        </div>
+        <div style="margin-top:14px">
+          <label class="f" style="margin-bottom:6px">Catégories de données traitées</label>
+          <div class="chips" id="p_dataCats"></div>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Durée de conservation <small>ex. « 3 ans après dernier contact »</small></label>
+          <label class="f">Destinataires internes</label>
+          <input type="text" id="p_retention" placeholder="Ex. 3 ans après le dernier achat">
+          <input type="text" id="p_recipients" placeholder="Ex. Service client, comptabilité">
+        </div>
+        <div style="margin-top:14px">
+          <label class="f">Sous-traitants (processeurs) <small>séparer par des virgules</small></label>
+          <input type="text" id="p_processors" placeholder="Ex. ShopNest (e-commerce), PayLine (paiement)" style="margin-top:5px">
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Transfert hors UE ?</label>
+          <label class="f" id="p_guaranteeWrap" style="display:none">Garantie du transfert (art. 44-46)</label>
+          <select id="p_transfer">
+            <option value="none">Aucun transfert hors UE</option>
+            <option value="us">Vers les États-Unis</option>
+            <option value="other">Vers un autre pays tiers</option>
+          </select>
+          <select id="p_transferGuarantee">
+            <option value="">— Sélectionner —</option>
+            <option>Clauses contractuelles types (CCT)</option>
+            <option>Décision d'adéquation (art. 45)</option>
+            <option>Aucune garantie identifiée</option>
+            <option>À vérifier</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:18px">
+          <button class="btn primary" id="btnAddProcessing">+ Ajouter au registre</button>
+          <button class="btn ghost" id="btnCancelEdit" style="display:none">Annuler la modification</button>
+        </div>
+      </div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 1 : Contexte</button>
+        <button class="btn primary" data-nav="next">Étape 3 : Questionnaire d'audit →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 3 : Questionnaire ═══ -->
+    <section class="screen" id="screen-3">
+      <div class="screen-head">
+        <div class="kicker">Étape 3 / 5</div>
+        <h1>Questionnaire d'audit</h1>
+        <p>Répondez critère par critère, avec preuve à l'appui lorsque disponible. Une réponse « Conforme » sans preuve reste marquée « conformité déclarée » dans le rapport.</p>
+      </div>
+      <div class="q-prog">
+        <div class="txt" id="qProgTxt">0 / 0 critères évalués</div>
+        <div class="track"><i id="qProgBar" style="width:0%"></i></div>
+        <div class="txt" id="qProgScore">—</div>
+      </div>
+      <div id="questionnaire"></div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 2 : Registre</button>
+        <button class="btn primary" data-nav="next">Calculer les résultats →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 4 : Résultats ═══ -->
+    <section class="screen" id="screen-4">
+      <div class="screen-head">
+        <div class="kicker">Étape 4 / 5</div>
+        <h1>Résultats de l'audit &amp; synthèse des écarts</h1>
+        <p>Score global pondéré, scores par domaine et constats de non-conformité générés automatiquement, classés par criticité.</p>
+      </div>
+      <div id="results"></div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 3 : Questionnaire</button>
+        <button class="btn primary" data-nav="next">Étape 5 : Plan d'action &amp; rapport →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 5 : Plan d'action ═══ -->
+    <section class="screen" id="screen-5">
+      <div class="screen-head">
+        <div class="kicker">Étape 5 / 5</div>
+        <h1>Plan d'action &amp; rapport d'audit</h1>
+        <p>Recommandations priorisées par horizon de remédiation, pilotables (responsable, statut), avec export du dossier complet et impression du rapport.</p>
+      </div>
+      <div id="actionPlan"></div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 4 : Résultats</button>
+        <button class="btn primary" id="btnBackHome">Terminer l'audit ✓</button>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+<div id="print-report"></div>
+<script>
+/* ═══════════════ MODÈLE DE DONNÉES : RÉFÉRENTIEL D'AUDIT ═══════════════ */
+const DOMAINS = [
+  {id:'governance', name:'Gouvernance & documentation', icon:'🏛️', desc:'Registre, politique, responsabilités'},
+  {id:'lawful',     name:'Bases légales & finalités',    icon:'⚖️', desc:'Art. 5, 6 — licéité, minimisation'},
+  {id:'rights',     name:'Droits des personnes',         icon:'🤝', desc:'Art. 15-22 — accès, effacement, opposition'},
+  {id:'consent',    name:'Consentement & prospection',   icon:'✉️', desc:'Art. 7, ePrivacy — opt-in, retrait'},
+  {id:'security',   name:'Sécurité & mesures techniques',icon:'🔒', desc:'Art. 32 — chiffrement, MFA, journalisation'},
+  {id:'vendors',    name:'Sous-traitants & transferts',  icon:'🔗', desc:'Art. 28, 44-49 — contrats, garanties'},
+  {id:'breach',     name:'Violations de données',        icon:'🚨', desc:'Art. 33-34 — détection, notification 72h'},
+  {id:'aipd',       name:'AIPD & risques',               icon:'📋', desc:'Art. 35 — analyse d\'impact'}
+];
+
+/* Chaque critère : poids 1-3, question, référence, aide, condition d'activation
+   cond: fonction(ctx) => true si le critère s'applique à cette entreprise */
+const CRITERIA = [
+  // ── Gouvernance ──
+  {id:'gov1', domain:'governance', w:3, q:'Un registre des activités de traitement est tenu à jour (art. 30) et recense tous les traitements actifs ?', ref:'Art. 30', help:'Le registre doit être exhaustive : finalités, bases légales, catégories de personnes et de données, durées, destinataires, transferts.'},
+  {id:'gov2', domain:'governance', w:2, q:'Une politique de protection des données formalisée (validée par la direction) existe et est diffusée aux salariés ?', ref:'Art. 24', help:'Document engageant la direction : principes, rôles, procédures (droits, violations), sanctionnable en cas de manquement.'},
+  {id:'gov3', domain:'governance', w:2, q:'Un référent RGPD / DPO est clairement désigné et les salariés savent vers qui se tourner ?', ref:'Art. 37-38', help:'La désignation peut être interne (référent), externalisée, ou obligatoire (DPO) selon les cas de l\'art. 37.'},
+  {id:'gov4', domain:'governance', w:1, q:'La cartographie des flux de données est réalisée et conservée (schémas applicatifs / réseau) ?', ref:'Bonnes pratiques', help:'Support visuel des circulations de données, utile pour l\'AIPD et l\'analyse des risques.'},
+
+  // ── Bases légales ──
+  {id:'law1', domain:'lawful', w:3, q:'Chaque traitement du registre a une base légale identifiée et documentée (art. 6) ?', ref:'Art. 6', help:'Une finalité sans base légale est illicite en soi — c\'est le premier contrôle de tout audit.'},
+  {id:'law2', domain:'lawful', w:2, q:'Les finalités sont spécifiées, explicites et légitimes, et les données ne sont pas réutilisées de manière incompatible ?', ref:'Art. 5(1)(b)', help:'Ex. : des emails collectés pour l\'exécution d\'une commande ne peuvent pas servir à la prospection sans base distincte.'},
+  {id:'law3', domain:'lawful', w:3, q:'Les données sont limitées à ce qui est strictement nécessaire aux finalités (minimisation) ?', ref:'Art. 5(1)(c)', help:'Contrôle des champs collectés dans les formulaires, les fichiers métier, les outils SaaS.'},
+  {id:'law4', domain:'lawful', w:2, q:'Les durées de conservation sont définies et appliquées (purge / archivage effectif) ?', ref:'Art. 5(1)(e)', help:'Une durée définie mais jamais exécutée = non-conformité partielle : il faut des preuves de purge.'},
+  {id:'law5', domain:'lawful', w:2, q:'Les personnes sont informées au moment de la collecte (politique de confidentialité accessible, mentions art. 13) ?', ref:'Art. 13', help:'Vérifier : accessibilité en moins de 2 clics, langue claire, mentions complètes (responsable, finalités, base, durée, droits, DPO, transferts).'},
+
+  // ── Droits ──
+  {id:'rig1', domain:'rights', w:3, q:'Un processus de gestion des demandes de droits est formalisé et la réponse est apportée dans le délai d\'un mois ?', ref:'Art. 12(3)', help:'Vérifier la traçabilité : registre des demandes, dates de réception / réponse, preuve d\'identité le cas échéant.'},
+  {id:'rig2', domain:'rights', w:2, q:'Tous les droits sont couverts : accès, rectification, effacement, limitation, portabilité, opposition ?', ref:'Art. 15-22', help:'Un processus qui ne couvre que l\'accès est partiellement conforme.'},
+  {id:'rig3', domain:'rights', w:2, q:'Les canaux de demande sont publics et faciles à utiliser (adresse email dédiée, formulaire) ?', ref:'Art. 12(2)', help:'La CNIL exige que le canal de demande soit au moins aussi simple que le canal de collecte.'},
+
+  // ── Consentement ── (conditionnel : au moins un traitement fondé sur le consentement)
+  {id:'con1', domain:'consent', w:3, q:'Le consentement est collecté par une action positive claire (case décochée par défaut, pas de consentement implicite) ?', ref:'Art. 4(11), 7', help:'La case doit être décochée par défaut ; le silence ou l\'inactivité ne valent pas consentement.', cond: c => c.hasConsentBasis},
+  {id:'con2', domain:'consent', w:3, q:'Le consentement peut être retiré aussi facilement qu\'il a été donné (lien de désinscription, paramètre) ?', ref:'Art. 7(3)', help:'Vérifier l\'existence effective du lien de retrait dans chaque email et son fonctionnement testé.'},
+  {id:'con3', domain:'consent', w:2, q:'La prospection B2B/B2C respecte les règles ePrivacy (opt-in pour les particuliers, opposition aisée) ?', ref:'LIL art. L34-5 CPCE', help:'Pour les emails professionnels : opposition à la première sollicitation. Pour les particuliers : opt-in préalable.', cond: c => c.hasProspection},
+
+  // ── Sécurité ──
+  {id:'sec1', domain:'security', w:3, q:'Le chiffrement des données est appliqué au repos et en transit (TLS 1.2+, disques chiffrés, sauvegardes chiffrées) ?', ref:'Art. 32(1)(a)', help:'Vérifier : HTTPS sur tous les services, chiffrement des postes et sauvegardes, gestion des clés.'},
+  {id:'sec2', domain:'security', w:3, q:'L\'authentification forte (MFA) est activée sur les accès distants et les comptes administrateurs ?', ref:'Art. 32', help:'VPN, emails, console d\'administration, outils SaaS : la MFA est la mesure la plus rentable contre le piratage de compte.'},
+  {id:'sec3', domain:'security', w:2, q:'La gestion des habilitations est formalisée (revue périodique, comptes anomalies, départs salariés) ?', ref:'Art. 32(4)', help:'Vérifier la preuve de la dernière revue d\'habilitations et le processus de fermeture des comptes au départ.'},
+  {id:'sec4', domain:'security', w:2, q:'Une politique de sauvegarde et un test de restauration sont en place (RTO/RPO définis) ?', ref:'Art. 32(1)(c)', help:'Une sauvegarde jamais restaurée n\'est pas une preuve : exiger un PV de test de restauration.'},
+  {id:'sec5', domain:'security', w:1, q:'La journalisation des accès aux données personnelles est activée (qui a accédé à quoi, quand) ?', ref:'Art. 32', help:'Logs conservés suffisamment longtemps, protégés contre la modification.'},
+
+  // ── Sous-traitants & transferts ──
+  {id:'ven1', domain:'vendors', w:3, q:'Tous les sous-traitants sont sous contrat art. 28 (instructions documentées, confidentialité, audit) ?', ref:'Art. 28(3)', help:'Vérifier un exemplaire signé pour chaque processeur listé au registre — les CGU seules ne suffisent pas.'},
+  {id:'ven2', domain:'vendors', w:2, q:'Les transferts hors UE disposent de garanties appropriées (CCT, décision d\'adéquation) ? ', ref:'Art. 44-46', help:'Lister les pays, vérifier les SCC 2021/914 et les mesures complémentaires pour les transferts vers les US.', cond: c => c.hasTransfer},
+  {id:'ven3', domain:'vendors', w:1, q:'Une veille sur les sous-traitants critiques est en place (revue annuelle de leurs certifications) ?', ref:'Bonnes pratiques', help:'ISO 27001, SOC 2, HDS : exiger les attestations à jour.'},
+
+  // ── Violations ──
+  {id:'bre1', domain:'breach', w:3, q:'Une procédure de gestion des violations de données existe (détection, qualification, notification CNIL 72h) ?', ref:'Art. 33', help:'La procédure doit inclure : qualification (risque pour les droits ?), notification à la CNIL sous 72h, information des personnes si risque élevé.'},
+  {id:'bre2', domain:'breach', w:2, q:'Un registre des violations est tenu (même pour celles non notifiées) ?', ref:'Art. 33(5)', help:'Obligation de documenter TOUTES les violations, notifiées ou non.'},
+
+  // ── AIPD ── (conditionnel)
+  {id:'aip1', domain:'aipd', w:3, q:'Une AIPD a été réalisée pour les traitements à risque élevé identifiés (ou leur nécessité a été analysée) ?', ref:'Art. 35', help:'L\'AIPD est obligatoire notamment pour le profilage, la surveillance systématique, les données sensibles à grande échelle.', cond: c => c.needsAIPD},
+  {id:'aip2', domain:'aipd', w:2, q:'Une cartographie / analyse des risques générale est documentée et revue périodiquement ?', ref:'Art. 32(1)', help:'Support de l\'AIPD et du choix des mesures de sécurité proportionnées.'}
+];
+
+/* Barème de notation :
+   c = conforme (100% des points), pc = partiellement conforme (50%), nc = non conforme (0), na = non applicable (exclu du dénominateur)
+   Taux global = Σ(points obtenus) / Σ(points applicables) */
+
+/* ═══════════════ SCÉNARIO RÉEL PRÉ-REMPLI : Atelier Vermeil (PME e-commerce) ═══════════════ */
+const DEMO = {
+  company: {name:'Atelier Vermeil SARL', siren:'843 201 775', sector:'E-commerce / Vente à distance', size:'10 à 49 salariés', dpoName:'Claire Le Goff, Responsable RH', dpoStatus:'Référent RGPD interne (volontaire)', auditor:'M. Karim Bensalem — Cabinet Audentis', date:'2026-11-10'},
+  processing: [
+    {name:'Gestion des clients et commandes', legalBasis:'contract', purpose:'Gestion des comptes clients, commandes, livraison, facturation et service après-vente', dataCats:['identite','coordonnees','commande','facturation'], retention:'3 ans après le dernier achat (compte inactif) — 10 ans pour les factures (obligation comptable)', recipients:'Service client, comptabilité', processors:'ShopNest (plateforme e-commerce), PayLine (paiement), Colissimo (livraison)', transfer:'us', transferGuarantee:'Clauses contractuelles types (CCT)'},
+    {name:'Prospection commerciale par email', legalBasis:'consent', purpose:'Envoi d\'une newsletter et d\'offres promotionnelles aux prospects et clients', dataCats:['identite','coordonnees'], retention:'3 ans après le dernier contact pour les prospects', recipients:'Service marketing', processors:'MailSpark (solution d\'emailing)', transfer:'none', transferGuarantee:''},
+    {name:'Gestion des salariés et paie', legalBasis:'legal', purpose:'Gestion administrative des salariés, contrats, paie, congés, entretiens annuels', dataCats:['identite','coordonnees','rh'], retention:'5 ans après le départ (dossier), 50 ans pour la paie (retraite)', recipients:'Direction, RH, expert-comptable', processors:'PaySaaS (logiciel de paie cloud)', transfer:'none', transferGuarantee:''}
+  ],
+  /* Réponses : c / pc / nc / na — avec preuve le cas échéant */
+  answers: {
+    gov1:{v:'c', ev:'Registre au format tableur, dernière mise à jour 12/09/2026, 3 traitements documentés'},
+    gov2:{v:'pc', ev:'Politique validée en 2023 mais jamais rediffusée depuis — pas de preuve d\'accusé de réception des salariés embauchés après'},
+    gov3:{v:'c', ev:'Claire Le Goff désignée référente RGPD par note de service n°2024-07, mentionnée dans le livret d\'accueil'},
+    gov4:{v:'nc', ev:''},
+    law1:{v:'c', ev:'Colonne base légale renseignée pour les 3 traitements du registre'},
+    law2:{v:'c', ev:'Finalités distinctes par traitement ; la base e-mail commande ≠ prospection (newsletter opt-in séparée)'},
+    law3:{v:'pc', ev:'Champ « date de naissance » collecté à l\'inscription sans justification — supprimé en cours d\'audit le 03/11/2026'},
+    law4:{v:'pc', ev:'Durées définies au registre mais aucune purge automatisée : 4 200 comptes clients de plus de 3 ans d\'inactivité toujours actifs'},
+    law5:{v:'c', ev:'Politique de confidentialité accessible en pied de page, mentions art. 13 complètes, version du 15/06/2026'},
+    rig1:{v:'pc', ev:'Processus informel via la boîte contact@ : 2 demandes d\'accès reçues en 2026, réponse en 21 et 34 jours — une hors délai'},
+    rig2:{v:'pc', ev:'Seuls accès et effacement traités en pratique ; portabilité et limitation jamais testés'},
+    rig3:{v:'c', ev:'Adresse contact@ et formulaire en ligne ; mention dans la politique de confidentialité'},
+    con1:{v:'c', ev:'Case à cocher décochée par défaut au tunnel de commande et à l\'inscription newsletter (copies d\'écran en annexe)'},
+    con2:{v:'c', ev:'Lien de désinscription présent dans chaque email testé (15/10/2026), désinscription immédiate vérifiée'},
+    con3:{v:'c', ev:'Opt-in pour les particuliers ; B2B : mention d\'opposition en en-tête des emails prospection'},
+    sec1:{v:'c', ev:'HTTPS/TLS 1.3 sur la boutique et la messagerie ; postes chiffrés BitLocker / FileVault ; sauvegardes chiffrées AES-256'},
+    sec2:{v:'nc', ev:'Pas de MFA sur la console d\'administration ShopNest ni sur les comptes Google Workspace administrateur — constat critique'},
+    sec3:{v:'pc', ev:'Aucune revue d\'habilitations documentée ; 2 comptes de salariés partis en 2025 toujours actifs dans le logiciel de paie'},
+    sec4:{v:'c', ev:'Sauvegarde quotidienne automatique + test de restauration documenté du 20/08/2026 (PV signé)'},
+    sec5:{v:'nc', ev:'Aucune journalisation des accès administrateur à la base clients (fonction non activée dans ShopNest)'},
+    ven1:{v:'pc', ev:'Contrats art. 28 signés avec PayLine et Colissimo ; ShopNest et MailSpark sous CGU standard seulement'},
+    ven2:{v:'nc', ev:'Transfert US (ShopNest) sans CCT signée ni analyse des mesures complémentaires'},
+    ven3:{v:'nc', ev:''},
+    bre1:{v:'pc', ev:'Procédure non écrite, mais réaction correcte lors de l\'incident de mars 2026 (email envoyé à 38 mauvais destinataires)'},
+    bre2:{v:'nc', ev:'Aucun registre des violations — l\'incident de mars 2026 n\'y figure pas'},
+    aip1:{v:'pc', ev:'Pas d\'AIPD formalisée ; analyse sommaire de la prospection faite en 2024 mais non documentée'},
+    aip2:{v:'nc', ev:''}
+  }
+};
+
+/* ═══════════════ MOTEUR APPLICATIF ═══════════════ */
+const DATA_CATS = [
+  {id:'identite',    label:'Identité (nom, prénom)'},
+  {id:'coordonnees', label:'Coordonnées (email, tél, adresse)'},
+  {id:'commande',    label:'Commandes / historique d\'achat'},
+  {id:'facturation', label:'Facturation'},
+  {id:'rh',          label:'Données RH (contrat, paie, congés)'},
+  {id:'sante',       label:'Santé (données sensibles art. 9)'},
+  {id:'solvency',    label:'Solvabilité / scoring'},
+  {id:'geoloc',      label:'Géolocalisation / cookies'},
+  {id:'biometric',   label:'Biométrie'}
+];
+
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+/* État global de l'audit */
+let state = {
+  screen: 0,
+  company: {name:'', siren:'', sector:'', size:'', dpoName:'', dpoStatus:'', auditor:'', date:''},
+  processing: [],        // registre des traitements
+  answers: {},           // {critId: {v:'c'|'pc'|'nc'|'na', ev:'preuve'}}
+  plan: {}               // {findingId: {owner, status, due}}
+};
+
+/* ── Persistance locale (localStorage) ── */
+function save(){
+  try{ localStorage.setItem('audit_rgpd_state', JSON.stringify(state)); }catch(e){}
+  $('#startResume').classList.toggle('disabled', !hasData());
+}
+function load(){
+  try{
+    const raw = localStorage.getItem('audit_rgpd_state');
+    if(raw){ state = JSON.parse(raw); return true; }
+  }catch(e){}
+  return false;
+}
+function hasData(){ return state.processing.length>0 || Object.keys(state.answers).length>0 || state.company.name; }
+
+/* ── Contexte dérivé (active les critères conditionnels) ── */
+function context(){
+  const p = state.processing;
+  return {
+    hasConsentBasis : p.some(x => x.legalBasis==='consent'),
+    hasProspection  : p.some(x => /prospect|newslet|market|commerce/i.test(x.name+x.purpose)),
+    hasTransfer     : p.some(x => x.transfer && x.transfer!=='none'),
+    needsAIPD       : p.some(x => x.dataCats.includes('sante') || x.dataCats.includes('biometric') || x.dataCats.includes('geoloc') || x.dataCats.includes('solvency') || /prospect|newslet|market|commerce/i.test(x.name+x.purpose))
+  };
+}
+function activeCriteria(){ const ctx = context(); return CRITERIA.filter(c => !c.cond || c.cond(ctx)); }
+
+/* ── Moteur de scoring ── */
+function computeScores(){
+  const act = activeCriteria();
+  const domains = DOMAINS.map(d => {
+    const items = act.filter(c => c.domain===d.id);
+    let max=0, got=0;
+    items.forEach(c => {
+      const a = state.answers[c.id];
+      if(!a || a.v==='na') return;           // exclu du dénominateur
+      max += c.w;
+      if(a.v==='c')  got += c.w;
+      if(a.v==='pc') got += c.w*0.5;
+    });
+    return {...d, items, max, got, pct: max>0 ? Math.round(got/max*100) : null, nNa: items.filter(c=>state.answers[c.id]?.v==='na').length};
+  });
+  let gMax=0, gGot=0;
+  domains.forEach(d => { gMax+=d.max; gGot+=d.got; });
+  const global = gMax>0 ? Math.round(gGot/gMax*100) : null;
+  return {domains, global, gMax, gGot, nAnswered: act.filter(c => state.answers[c.id]).length, nAct: act.length};
+}
+
+/* ── Moteur de constats (écarts → constats priorisés) ── */
+function RECO(c, v){
+  const R = {
+    gov2:'Formaliser et rediffuser la politique de protection des données ; faire viser les mises à jour aux salariés (accusés de réception archivés).',
+    gov4:'Réaliser la cartographie des flux de données (schéma des applications et circulations) ; l\'utiliser comme support de l\'analyse de risques.',
+    law3:'Supprimer les champs non nécessaires des formulaires et fichiers (minimisation) ; justifier chaque champ par une finalité.',
+    law4:'Mettre en œuvre la purge automatisée des comptes inactifs (règle à 3 ans) et documenter les exceptions (obligations légales de conservation).',
+    rig1:'Formaliser le processus de droits : registre des demandes, modèle de réponse, alerte à J+20 pour tenir le délai d\'un mois (art. 12(3)).',
+    rig2:'Étendre le processus aux six droits : ajouter portabilité et limitation (modèles de réponse et test à blanc).',
+    sec2:'Activer la MFA sur tous les accès administrateurs et distants (ShopNest, Google Workspace) — priorité absolue, coût quasi nul.',
+    sec3:'Instituer une revue trimestrielle des habilitations (PV signé) et fermer les comptes des salariés partis (2 comptes à traiter immédiatement).',
+    sec5:'Activer la journalisation des accès administrateur aux données clients dans ShopNest ; conserver les logs 6 mois minimum.',
+    ven1:'Faire signer des contrats art. 28 à ShopNest et MailSpark (modèle CNIL disponible) ; les CGU standard ne suffisent pas.',
+    ven2:'Signer les CCT (modèle 2021/914) avec ShopNest et réaliser l\'analyse des mesures complémentaires (transfert US).',
+    ven3:'Mettre en place la veille sous-traitants : demander les attestations ISO 27001 / SOC 2 et planifier une revue annuelle.',
+    bre1:'Rédiger la procédure de gestion des violations (qualification du risque, notification CNIL ≤ 72h, information des personnes).',
+    bre2:'Ouvrir le registre des violations (art. 33(5)) et y consigner l\'incident de mars 2026.',
+    aip1:'Documenter l\'analyse de nécessité d\'AIPD pour la prospection ; si risque élevé, réaliser l\'AIPD complète (modèle CNIL).',
+    aip2:'Documenter l\'analyse des risques (menaces × vulnérabilités × impacts) et la revoir annuellement.'
+  };
+  return R[c.id] || 'Traiter l\'écart identifié conformément au RGPD.';
+}
+const RISK_TXT = {
+  sec2:'Ne pas exiger de MFA sur les consoles d\'administration expose à une prise de contrôle du compte (vol de données clients intégral, ransomware).',
+  sec5:'Sans journalisation, une violation peut rester indétectée et la société ne pourra pas prouver son régime de responsabilité ni notifier la CNIL dans les 72h.',
+  ven2:'Un transfert hors UE sans garantie expose à une sanction et à la suspension du transfert par la CNIL (art. 46, 58(2)(j)).',
+  law4:'La conservation indéfinie de comptes inactifs accroît la surface d\'attaque et le risque en cas de violation (quantité de données exposées).',
+  rig1:'Un dépassement du délai d\'un mois constitue un manquement à l\'art. 12(3) sanctionnable (jusqu\'à 4 % du CA mondial).'
+};
+/* Matrice de priorité : criticité du critère (poids) × ampleur de l'écart (nc > pc)
+   nc + poids 3 → CRITIQUE (0-30 j) · nc + poids 2 ou pc + poids 3 → ÉLEVÉE (1-3 mois) · sinon MOYENNE (3-6 mois) */
+function priorityOf(c, v){
+  if(v==='nc' && c.w===3) return {p:'crit', lbl:'CRITIQUE', horizon:'0-30 jours',  owner:'Direction / IT'};
+  if(v==='nc' && c.w===2) return {p:'high', lbl:'ÉLEVÉE',   horizon:'1-3 mois',    owner:'Référent RGPD'};
+  if(v==='pc' && c.w===3) return {p:'high', lbl:'ÉLEVÉE',   horizon:'1-3 mois',    owner:'Référent RGPD'};
+  return {p:'medium', lbl:'MOYENNE', horizon:'3-6 mois', owner:'Référent RGPD'};
+}
+function buildFindings(){
+  const act = activeCriteria();
+  const list = [];
+  act.forEach(c => {
+    const a = state.answers[c.id];
+    if(!a || (a.v!=='pc' && a.v!=='nc')) return;
+    const pr = priorityOf(c, a.v);
+    list.push({
+      id:c.id, crit:c, v:a.v, ev:a.ev,
+      dom:DOMAINS.find(d=>d.id===c.domain),
+      prio:pr.p, prioLbl:pr.lbl, horizon:pr.horizon, owner:pr.owner,
+      reco:RECO(c, a.v),
+      risk: RISK_TXT[c.id] || `Écart au regard de ${c.ref} : la conformité ${a.v==='pc'?'n\'est que partielle':'n\'est pas établie'} sur ce point.`
+    });
+  });
+  const order = {crit:0, high:1, medium:2};
+  return list.sort((a,b) => order[a.prio]-order[b.prio]);
+}
+
+/* ── Niveau global (lettres) ── */
+function gradeOf(pct){
+  if(pct===null) return {lbl:'—', color:'#64748b', bg:'#f1f5f9', cls:'gray'};
+  if(pct>=90) return {lbl:'A — Conforme', color:'#166534', bg:'#f0fdf4', cls:'ok'};
+  if(pct>=75) return {lbl:'B — Satisfaisant', color:'#3f6212', bg:'#f7fee7', cls:'ok'};
+  if(pct>=60) return {lbl:'C — À améliorer', color:'#92400e', bg:'#fffbeb', cls:'warn'};
+  if(pct>=40) return {lbl:'D — Insuffisant', color:'#9a3412', bg:'#fff7ed', cls:'high'};
+  return {lbl:'E — Non conforme', color:'#991b1b', bg:'#fef2f2', cls:'crit'};
+}
+function scoreColor(p){ return p>=75?'#16a34a':p>=60?'#d97706':p>=40?'#ea580c':'#dc2626'; }
+
+/* ── Toast ── */
+let toastTimer;
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+/* ═══════════════ NAVIGATION ═══════════════ */
+const STEPS = [
+  {n:1, lbl:'Contexte',        sub:'Entreprise & périmètre'},
+  {n:2, lbl:'Registre',        sub:'Traitements art. 30'},
+  {n:3, lbl:'Questionnaire',   sub:'Critères pondérés'},
+  {n:4, lbl:'Résultats',       sub:'Score & écarts'},
+  {n:5, lbl:'Plan d\'action',  sub:'Remédiation & rapport'}
+];
+function renderStepper(){
+  $('#stepper').innerHTML = STEPS.map(s => {
+    const cls = state.screen===s.n ? 'active' : (state.screen>s.n ? 'done' : '');
+    const mark = state.screen>s.n ? '✓' : s.n;
+    return `<li class="${cls}" data-step="${s.n}"><span class="num">${mark}</span><span class="lbl"><b>${s.lbl}</b><small>${s.sub}</small></span></li>`;
+  }).join('');
+  $$('#stepper li').forEach(li => li.onclick = () => { state.screen=+li.dataset.step; renderAll(); });
+}
+function goTo(n){ state.screen=n; renderAll(); window.scrollTo(0,0); }
+
+/* ═══════════════ RENDU : ACCUEIL ═══════════════ */
+function renderHome(){
+  $('#startResume').classList.toggle('disabled', !hasData());
+}
+
+/* ═══════════════ RENDU : CONTEXTE ═══════════════ */
+function renderContext(){
+  const map = {f_name:'name', f_siren:'siren', f_sector:'sector', f_size:'size', f_dpoName:'dpoName', f_dpoStatus:'dpoStatus', f_auditor:'auditor', f_date:'date'};
+  Object.entries(map).forEach(([el,k]) => { $('#'+el).value = state.company[k]||''; });
+}
+
+/* ═══════════════ RENDU : REGISTRE ═══════════════ */
+const LEGAL_LBL = {consent:'Consentement (a)', contract:'Exécution du contrat (b)', legal:'Obligation légale (c)', vital:'Intérêts vitaux (d)', public:'Intérêt public (e)', legitimate:'Intérêt légitime (f)'};
+let editingIdx = -1;
+
+function renderRegistry(){
+  const list = $('#registryList');
+  if(!state.processing.length){
+    list.innerHTML = '<div class="empty">Aucun traitement documenté pour le moment.<br>Ajoutez vos traitements principaux (clients, RH, prospection…) — le questionnaire s\'adaptera automatiquement.</div>';
+  } else {
+    list.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Traitement</th><th>Base légale</th><th>Données</th><th>Conservation</th><th>Sous-traitants / Transfert</th><th></th></tr></thead><tbody>' +
+      state.processing.map((p,i) => {
+        const cats = p.dataCats.map(id => DATA_CATS.find(d=>d.id===id)?.label || id).join(', ');
+        const tr = p.transfer && p.transfer!=='none'
+          ? `<span class="badge high">${p.transfer==='us'?'🇺🇸 Hors UE — US':'🌍 Hors UE'}</span> ${p.transferGuarantee||'<i style="color:#dc2626">aucune garantie</i>'}`
+          : '<span class="badge ok">UE uniquement</span>';
+        return `<tr>
+          <td><b>${esc(p.name)}</b><br><small style="color:var(--muted)">${esc(p.purpose)}</small></td>
+          <td>${LEGAL_LBL[p.legalBasis]||esc(p.legalBasis)}</td>
+          <td><small>${esc(cats)}</small></td>
+          <td><small>${esc(p.retention)}</small></td>
+          <td><small>${esc(p.processors)||'—'}</small><br>${tr}</td>
+          <td style="white-space:nowrap"><button class="btn small ghost" data-edit="${i}">✎</button> <button class="btn small danger" data-del="${i}">✕</button></td>
+        </tr>`;
+      }).join('') + '</tbody></table></div>';
+    list.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+      state.processing.splice(+b.dataset.del,1); save(); renderRegistry(); toast('Traitement supprimé du registre');
+    });
+    list.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => fillForm(+b.dataset.edit));
+  }
+  const n = state.processing.length;
+  $('#regCount').textContent = n===0 ? '' : `${n} traitement${n>1?'s':''} documenté${n>1?'s':''} · ${state.processing.filter(p=>p.transfer&&p.transfer!=='none').length} transfert(s) hors UE · ${state.processing.filter(p=>p.legalBasis==='consent').length} traitement(s) fondé(s) sur le consentement`;
+  if(editingIdx>=0){ $('#pfTitle').textContent='Modifier le traitement'; $('#btnAddProcessing').textContent='Enregistrer les modifications'; $('#btnCancelEdit').style.display=''; }
+  else { $('#pfTitle').textContent='Ajouter un traitement'; $('#btnAddProcessing').textContent='+ Ajouter au registre'; $('#btnCancelEdit').style.display='none'; }
+}
+
+function fillForm(i){
+  const p = state.processing[i]; editingIdx = i;
+  $('#p_name').value=p.name; $('#p_legalBasis').value=p.legalBasis; $('#p_purpose').value=p.purpose;
+  $('#p_retention').value=p.retention; $('#p_recipients').value=p.recipients; $('#p_processors').value=p.processors;
+  $('#p_transfer').value=p.transfer; $('#p_transferGuarantee').value=p.transferGuarantee||'';
+  renderChips(p.dataCats);
+  $('#p_transferGuaranteeWrap').style.display = p.transfer && p.transfer!=='none' ? '' : 'none';
+  renderRegistry();
+}
+
+function renderChips(selected){
+  $('#p_dataCats').innerHTML = DATA_CATS.map(d =>
+    `<span class="chip ${selected.includes(d.id)?'on':''}" data-cat="${d.id}">${d.label}</span>`).join('');
+  $('#p_dataCats').querySelectorAll('.chip').forEach(ch => ch.onclick = () => ch.classList.toggle('on'));
+}
+function collectChips(){ return Array.from($('#p_dataCats').querySelectorAll('.chip.on')).map(c=>c.dataset.cat); }
+
+/* ═══════════════ RENDU : QUESTIONNAIRE ═══════════════ */
+function renderQuestionnaire(){
+  const act = activeCriteria();
+  const ctx = context();
+  let html = '';
+  DOMAINS.forEach(d => {
+    const items = act.filter(c => c.domain===d.id);
+    if(!items.length) return;
+    const answered = items.filter(c => state.answers[c.id]).length;
+    const pct = Math.round(answered/items.length*100);
+    const col = pct===100 ? '#16a34a' : pct>0 ? '#2563eb' : '#cbd5e1';
+    html += `<div class="q-domain">
+      <header>
+        <div><h3>${d.icon} ${d.name}</h3><small style="color:var(--muted)">${d.desc} — ${items.length} critère${items.length>1?'s':''}</small></div>
+        <div class="meta"><div class="dbar"><i style="width:${pct}%;background:${col}"></i></div><small style="color:var(--muted);font-weight:600">${answered}/${items.length}</small></div>
+      </header>
+      <div class="body">`;
+    items.forEach(c => {
+      const a = state.answers[c.id] || {v:'', ev:''};
+      const condNote = c.cond ? `<span class="cond-flag">⚡ activé par votre registre</span>` : '';
+      html += `<div class="q-item">
+        <div class="q-top">
+          <div>
+            <div class="q-text">${c.q}</div>
+            <div class="q-help">${c.help}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            ${condNote}
+            <span class="badge gray">poids ${c.w}</span>
+            <span class="q-ref">${c.ref}</span>
+          </div>
+        </div>
+        <div class="q-ans">
+          <div class="seg" data-crit="${c.id}">
+            <label><input type="radio" name="q_${c.id}" value="c" ${a.v==='c'?'checked':''}>✓ Conforme</label>
+            <label><input type="radio" name="q_${c.id}" value="pc" ${a.v==='pc'?'checked':''}>◐ Partiel</label>
+            <label><input type="radio" name="q_${c.id}" value="nc" ${a.v==='nc'?'checked':''}>✗ Non conforme</label>
+            <label><input type="radio" name="q_${c.id}" value="na" ${a.v==='na'?'checked':''}>— N/A</label>
+          </div>
+          <input type="text" class="q-ev-input" data-crit="${c.id}" placeholder="Preuve / justification (ex. date du document, PV, copie d'écran n°…)" value="${esc(a.ev)}" style="flex:1;min-width:220px">
+        </div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  $('#questionnaire').innerHTML = html;
+
+  // listeners
+  $('#questionnaire').querySelectorAll('.seg input').forEach(r => r.onchange = () => {
+    const id = r.closest('.seg').dataset.crit;
+    state.answers[id] = state.answers[id] || {v:'', ev:''};
+    state.answers[id].v = r.value;
+    save(); updateProgress();
+  });
+  $('#questionnaire').querySelectorAll('.q-ev-input').forEach(inp => inp.oninput = () => {
+    const id = inp.dataset.crit;
+    state.answers[id] = state.answers[id] || {v:'', ev:''};
+    state.answers[id].ev = inp.value;
+    save();
+  });
+  updateProgress();
+}
+
+function updateProgress(){
+  const s = computeScores();
+  $('#qProgTxt').textContent = `${s.nAnswered} / ${s.nAct} critères évalués`;
+  $('#qProgBar').style.width = (s.nAct ? s.nAnswered/s.nAct*100 : 0)+'%';
+  $('#qProgScore').textContent = s.global===null ? '—' : `Score courant : ${s.global}%`;
+}
+
+/* ═══════════════ RENDU : RÉSULTATS ═══════════════ */
+function renderResults(){
+  const s = computeScores();
+  const g = gradeOf(s.global);
+  const findings = buildFindings();
+  const nC = findings.filter(f=>f.prio==='crit').length,
+        nH = findings.filter(f=>f.prio==='high').length,
+        nM = findings.filter(f=>f.prio==='medium').length;
+  const domBad = s.domains.filter(d=>d.pct!==null).sort((a,b)=>a.pct-b.pct).slice(0,3);
+
+  let html = `
+  <div class="card">
+    <div class="res-hero">
+      <div>
+        <div class="gauge">
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="84" fill="none" stroke="#eef2f7" stroke-width="16"/>
+            <circle cx="100" cy="100" r="84" fill="none" stroke="${scoreColor(s.global)}" stroke-width="16" stroke-linecap="round"
+              stroke-dasharray="${2*Math.PI*84}" stroke-dashoffset="${2*Math.PI*84*(1-(s.global||0)/100)}" style="transition:stroke-dashoffset 1s"/>
+          </svg>
+          <div class="gv"><b style="color:${scoreColor(s.global)}">${s.global===null?'—':s.global+'%'}</b><span>score global pondéré</span></div>
+        </div>
+      </div>
+      <div>
+        <span class="note-lbl" style="color:${g.color};background:${g.bg}">${g.lbl}</span>
+        <p style="margin-top:12px;color:#334155;line-height:1.7">
+          <b>${esc(state.company.name)||'Entreprise'}</b> — ${esc(state.company.sector)||'secteur non précisé'}, ${esc(state.company.size)||'effectif non précisé'}.<br>
+          ${s.nAnswered}/${s.nAct} critères évalués · ${s.gGot} points obtenus sur ${s.gMax} applicables.<br>
+          <b>${findings.length} constat${findings.length>1?'s':''} de non-conformité</b> : ${nC} critique${nC>1?'s':''}, ${nH} élevée${nH>1?'s':''}, ${nM} moyenne${nM>1?'s':''}.
+        </p>
+        <div class="warn-proof" id="proofWarn"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Scores par domaine</h2>
+    <p class="sub">Chaque domaine est noté sur les critères applicables uniquement (les « non applicable » sont exclus).</p>
+    ${s.domains.filter(d=>d.pct!==null || d.items.length).map(d => `
+      <div class="dom-row">
+        <div class="nm">${d.icon} ${d.name}${d.nNa?` <small>${d.nNa} critère(s) N/A exclu(s)</small>`:''}</div>
+        <div class="tk"><i style="width:${d.pct??0}%;background:${scoreColor(d.pct??0)}"></i></div>
+        <div style="font-weight:700;font-size:15px">${d.pct===null?'—':d.pct+'%'}</div>
+        <div>${d.pct===null?'<span class="badge gray">Non activé</span>':`<span class="badge ${gradeOf(d.pct).cls}">${gradeOf(d.pct).lbl.split(' — ')[0]}</span>`}</div>
+      </div>`).join('')}
+  </div>
+
+  <div class="card">
+    <h2>Synthèse des écarts — ${findings.length} constat${findings.length>1?'s':''}</h2>
+    <p class="sub">Constats générés automatiquement à partir des réponses « partiellement conforme » et « non conforme », classés par criticité (pondération du critère × ampleur de l\'écart).</p>
+    <div class="stat-grid">
+      <div class="stat" style="background:var(--crit-soft)"><b style="color:var(--crit)">${nC}</b><span>Constats critiques (0-30 j)</span></div>
+      <div class="stat" style="background:var(--high-soft)"><b style="color:var(--high)">${nH}</b><span>Constats élevés (1-3 mois)</span></div>
+      <div class="stat" style="background:var(--warn-soft)"><b style="color:var(--warn)">${nM}</b><span>Constats moyens (3-6 mois)</span></div>
+      <div class="stat" style="background:var(--ok-soft)"><b style="color:var(--ok)">${s.nAct-findings.filter(f=>['pc','nc'].includes(f.v)).length}</b><span>Critères conformes / N/A</span></div>
+    </div>
+    <div class="filters" style="margin-top:16px" id="findingFilters">
+      <button class="on" data-f="all">Tous (${findings.length})</button>
+      <button data-f="crit">Critiques (${nC})</button>
+      <button data-f="high">Élevés (${nH})</button>
+      <button data-f="medium">Moyens (${nM})</button>
+    </div>
+    <div id="findingsList"></div>
+  </div>
+
+  <div class="card">
+    <h2>Synthèse rédactionnelle automatique</h2>
+    <div class="synthese" id="autoSynthese"></div>
+  </div>`;
+
+  $('#results').innerHTML = html;
+
+  // Constats
+  function drawFindings(filter){
+    const fl = findings.filter(f => filter==='all' || f.prio===filter);
+    $('#findingsList').innerHTML = fl.length ? fl.map((f,i) => `
+      <div class="finding ${f.prio}">
+        <div class="f-head">
+          <div>
+            <h4>${f.prioLbl} · ${f.crit.q}</h4>
+            <div class="f-dom">${f.dom.icon} ${f.dom.name} — ${f.crit.ref} · poids ${f.crit.w}</div>
+          </div>
+          <span class="badge ${f.prio}">${f.v==='nc'?'Non conforme':'Partiellement conforme'}</span>
+        </div>
+        <dl>
+          <dt>Constat</dt><dd>${f.risk}</dd>
+          <dt>Preuve / situation</dt><dd>${esc(f.ev)||'<i style="color:#d97706">Aucune preuve fournie — conformité déclarée, à vérifier lors du prochain audit</i>'}</dd>
+          <dt>Recommandation</dt><dd><b>${f.reco}</b></dd>
+        </dl>
+      </div>`).join('')
+    : '<div class="empty">Aucun constat pour ce filtre. 🎉</div>';
+  }
+  drawFindings('all');
+  $('#findingFilters').querySelectorAll('button').forEach(b => b.onclick = () => {
+    $('#findingFilters').querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); drawFindings(b.dataset.f);
+  });
+
+  // Avertissement preuves manquantes
+  const noProof = findings.filter(f => !f.ev);
+  $('#proofWarn').innerHTML = noProof.length
+    ? `⚠️ ${noProof.length} constat${noProof.length>1?'s':''} sans preuve documentée (${noProof.map(f=>f.crit.id.toUpperCase()).join(', ')}) — une « conformité » sans preuve ne vaut que conformité déclarée.`
+    : `✓ Tous les constats sont étayés par une preuve ou une justification d'audit.`;
+
+  // Synthèse rédactionnelle
+  const worst = domBad.map(d=>`${d.name.toLowerCase()} (${d.pct}%)`).join(', ');
+  $('#autoSynthese').innerHTML = `
+    L'audit du <b>${fmtDate(state.company.date)}</b> couvre ${s.nAct} critères RGPD applicables à <b>${esc(state.company.name)}</b> (${esc(state.company.sector)||'—'}). Le score de conformité global s'établit à <b>${s.global}%</b> (niveau ${g.lbl.split(' — ')[0]}), soit ${s.gGot} points sur ${s.gMax} applicables.
+    ${findings.length?`<br><br>L'analyse des écarts fait ressortir <b>${findings.length} non-conformités</b>, dont <b>${nC} critique${nC>1?'s':''}</b> à traiter sous 30 jours${nC?` — en premier lieu <b>${findings.find(f=>f.prio==='crit').crit.id.toUpperCase()}</b> (${findings.find(f=>f.prio==='crit').crit.ref})`:''}.
+    Les domaines les plus fragiles sont : <b>${worst||'—'}</b>.`:'<br><br>Aucun écart n\'a été identifié.'}
+    ${nC||nH?`<br><br>La priorité des 90 prochains jours porte sur la sécurité des accès (MFA), la mise en conformité des contrats sous-traitants et la formalisation des procédures de droits et de violations, avant réévaluation du score.`:''}
+    ${noProof.length?`<br><br><i>Limites de l'audit : ${noProof.length} réponse(s) « conforme » sans preuve documentée n'ont été comptées que comme conformité déclarée.</i>`:''}`;
+
+  // side score
+  $('#sideScoreVal').textContent = s.global===null?'—':s.global+'%';
+  $('#sideScoreBar').style.width = (s.global||0)+'%';
+  $('#sideScoreBar').style.background = scoreColor(s.global||0);
+  $('#sideScoreLbl').textContent = s.global===null?'Aucun audit lancé':g.lbl;
+}
+
+function fmtDate(iso){ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+
+/* ═══════════════ RENDU : PLAN D'ACTION ═══════════════ */
+const HORIZONS = [
+  {id:'crit',   lbl:'🔥 Priorités immédiates', sub:'À traiter sous 30 jours — risques critiques', cls:'crit'},
+  {id:'high',   lbl:'🛠️ Court terme',          sub:'1 à 3 mois — risques élevés',                 cls:'high'},
+  {id:'medium', lbl:'📅 Moyen terme',          sub:'3 à 6 mois — amélioration continue',          cls:'medium'}
+];
+const STATUSES = ['À faire','En cours','En attente validation','Terminé'];
+
+function renderActionPlan(){
+  const findings = buildFindings();
+  const s = computeScores();
+
+  // Projection : score si toutes les actions du plan sont réalisées
+  let projGot = s.gGot, projMax = s.gMax;
+  findings.forEach(f => {
+    const a = state.answers[f.crit.id];
+    if(a.v==='nc') projGot += f.crit.w;        // nc → c
+    if(a.v==='pc') projGot += f.crit.w*0.5;    // pc → c
+  });
+  const projPct = projMax>0 ? Math.round(projGot/projMax*100) : null;
+
+  let html = `
+  <div class="card">
+    <div class="proj">
+      <div><div class="p-val before">${s.global===null?'—':s.global+'%'}</div><small style="color:var(--muted)">score actuel</small></div>
+      <div class="p-arrow">→</div>
+      <div><div class="p-val">${projPct===null?'—':projPct+'%'}</div><small style="color:var(--muted)">score projeté après remédiation complète</small></div>
+      <div style="margin-left:auto;font-size:13px;color:#334155;max-width:320px">
+        La réalisation de l'ensemble des ${findings.length} actions porterait le score global à <b>${projPct===null?'—':projPct+'%'}</b> (niveau ${gradeOf(projPct).lbl}).
+      </div>
+    </div>
+  </div>`;
+
+  HORIZONS.forEach(h => {
+    const fl = findings.filter(f => f.prio===h.id);
+    if(!fl.length) return;
+    html += `<div class="card horizon">
+      <div class="h-head"><h3>${h.lbl} <span class="badge ${h.cls}">${fl.length} action${fl.length>1?'s':''}</span></h3><small style="color:var(--muted)">${h.sub}</small></div>
+      ${fl.map(f => {
+        const pl = state.plan[f.crit.id]||{};
+        return `<div class="action-row">
+          <div class="a-t">${f.reco}<small>${f.dom.name} · ${f.crit.ref} · écart : ${f.v==='nc'?'non conforme':'partiellement conforme'}</small></div>
+          <input type="text" data-owner="${f.crit.id}" placeholder="Responsable (ex. ${f.owner})" value="${esc(pl.owner||'')}">
+          <select data-status="${f.crit.id}">${STATUSES.map(st=>`<option ${pl.status===st?'selected':''}>${st}</option>`).join('')}</select>
+          <input type="date" data-due="${f.crit.id}" value="${pl.due||autoDue(h.id)}">
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+
+  if(findings.length===0) html += '<div class="card"><div class="empty">Aucun écart à traiter — plan d\'action vide. 🎉</div></div>';
+
+  html += `
+  <div class="card">
+    <h2>Exports &amp; traçabilité</h2>
+    <p class="sub">Le dossier d'audit consolidé regroupe : fiche d'identité, registre art. 30, réponses et preuves, scores, constats et plan d'action.</p>
+    <div class="export-bar">
+      <button class="btn primary" id="btnPrint">🖨️ Rapport d'audit (PDF / impression)</button>
+      <button class="btn ghost" id="btnJson">⬇ Dossier d'audit (JSON)</button>
+      <button class="btn ghost" id="btnCsv">⬇ Registre + plan d'action (CSV)</button>
+    </div>
+    <div class="hint">Traçabilité : chaque réponse et chaque changement de statut est horodaté dans la sauvegarde locale. En production, ces événements alimentent le journal d'audit (qui a répondu quoi, quand) — exigence de preuve en cas de contrôle CNIL.</div>
+  </div>`;
+
+  $('#actionPlan').innerHTML = html;
+
+  // listeners plan
+  $('#actionPlan').querySelectorAll('[data-owner]').forEach(i => i.oninput = () => { getPlan(i.dataset.owner).owner = i.value; save(); });
+  $('#actionPlan').querySelectorAll('[data-status]').forEach(i => i.onchange = () => { getPlan(i.dataset.status).status = i.value; save(); toast('Statut mis à jour : '+i.value); });
+  $('#actionPlan').querySelectorAll('[data-due]').forEach(i => i.onchange = () => { getPlan(i.dataset.due).due = i.value; save(); });
+
+  $('#btnPrint').onclick = buildPrintReport;
+  $('#btnJson').onclick = exportJson;
+  $('#btnCsv').onclick = exportCsv;
+}
+function getPlan(id){ state.plan[id] = state.plan[id]||{}; return state.plan[id]; }
+function autoDue(h){
+  const d = new Date('2026-11-10');
+  if(h==='crit') d.setDate(d.getDate()+30);
+  if(h==='high') d.setMonth(d.getMonth()+3);
+  if(h==='medium') d.setMonth(d.getMonth()+6);
+  return d.toISOString().slice(0,10);
+}
+
+/* ═══════════════ EXPORTS ═══════════════ */
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function download(name, content, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:mime}));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+  toast('Fichier généré : '+name);
+}
+
+function exportJson(){
+  const s = computeScores(), findings = buildFindings();
+  const dossier = {
+    meta:{module:'Module 1 — Audit RGPD automatisé', genere:new Date().toISOString(), referentiel:'RGPD (UE) 2016/679 — 27 critères pondérés, aligné CNIL'},
+    entreprise:state.company,
+    registre:state.processing,
+    evaluation:{score_global:s.global, points:s.gGot+'/'+s.gMax, niveau:gradeOf(s.global).lbl,
+      domaines:s.domains.filter(d=>d.pct!==null).map(d=>({domaine:d.name, score:d.pct+'%', critères:d.items.length}))},
+    reponses:state.answers,
+    constats:findings.map(f=>({critere:f.crit.id, priorite:f.prioLbl, constat:f.risk, recommandation:f.reco, horizon:f.horizon, responsable:f.owner})),
+    plan_action:Object.entries(state.plan).map(([k,v])=>({action:k, ...v}))
+  };
+  download(`audit-rgpd-${(state.company.name||'entreprise').toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`, JSON.stringify(dossier,null,2), 'application/json');
+}
+
+function exportCsv(){
+  const rows = [['Type','Élément','Détail','Priorité/Niveau','Responsable','Échéance','Statut']];
+  state.processing.forEach(p => rows.push(['Registre', p.name, `${p.purpose} | Base: ${LEGAL_LBL[p.legalBasis]}`, '', '', '', '']));
+  buildFindings().forEach(f => {
+    const pl = state.plan[f.crit.id]||{};
+    rows.push(['Constat', f.crit.q, f.reco, f.prioLbl, pl.owner||f.owner, pl.due||autoDue(f.prio), pl.status||'À faire']);
+  });
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  download('audit-rgpd-registre-et-plan.csv', csv, 'text/csv;charset=utf-8');
+}
+
+/* ═══════════════ RAPPORT IMPRIMABLE ═══════════════ */
+function buildPrintReport(){
+  const s = computeScores(), findings = buildFindings(), g = gradeOf(s.global);
+  const C = state.company;
+  const P = id => state.processing.find(p=>p.id===id);
+  let html = `
+  <div class="p-head">
+    <h1>Rapport d'audit RGPD — ${esc(C.name)||'Entreprise'}</h1>
+    <div>Audit réalisé le ${fmtDate(C.date)} par ${esc(C.auditor)||'—'} · Référentiel : RGPD (UE) 2016/679 · Plateforme Conformité PME — Module 1</div>
+  </div>
+
+  <h2>1. Synthèse</h2>
+  <table><tr><td><b>Score global</b></td><td><b>${s.global===null?'—':s.global+'%'} — ${g.lbl}</b> (${s.gGot}/${s.gMax} points applicables)</td></tr>
+  <tr><td>Critères évalués</td><td>${s.nAnswered}/${s.nAct} applicables</td></tr>
+  <tr><td>Non-conformités</td><td>${findings.length} constats : ${findings.filter(f=>f.prio==='crit').length} critiques, ${findings.filter(f=>f.prio==='high').length} élevées, ${findings.filter(f=>f.prio==='medium').length} moyennes</td></tr>
+  <tr><td>Entreprise</td><td>${esc(C.name)||'—'} · SIREN ${esc(C.siren)||'—'} · ${esc(C.sector)||'—'} · ${esc(C.size)||'—'}</td></tr>
+  <tr><td>Référent RGPD</td><td>${esc(C.dpoName)||'—'} (${esc(C.dpoStatus)||'—'})</td></tr></table>
+
+  <h2>2. Scores par domaine</h2>
+  <table><thead><tr><th>Domaine</th><th>Critères</th><th>Points</th><th>Score</th><th>Niveau</th></tr></thead><tbody>
+  ${s.domains.filter(d=>d.pct!==null).map(d=>`<tr><td>${d.name}</td><td>${d.items.length}</td><td>${d.got}/${d.max}</td><td>${d.pct}%</td><td>${gradeOf(d.pct).lbl}</td></tr>`).join('')}
+  </tbody></table>
+
+  <h2>3. Registre des traitements (art. 30)</h2>
+  <table><thead><tr><th>Traitement</th><th>Finalité</th><th>Base légale</th><th>Données</th><th>Conservation</th><th>Sous-traitants</th><th>Transfert</th></tr></thead><tbody>
+  ${state.processing.map(p=>`<tr><td>${esc(p.name)}</td><td><small>${esc(p.purpose)}</small></td><td>${LEGAL_LBL[p.legalBasis]||''}</td><td><small>${p.dataCats.map(id=>DATA_CATS.find(d=>d.id===id)?.label).join(', ')}</small></td><td><small>${esc(p.retention)}</small></td><td><small>${esc(p.processors)||'—'}</small></td><td><small>${p.transfer==='none'?'UE':p.transfer==='us'?'Hors UE (US) — '+(p.transferGuarantee||'sans garantie'):'Hors UE — '+(p.transferGuarantee||'sans garantie')}</small></td></tr>`).join('')}
+  </tbody></table>
+
+  <h2 class="pgbreak">4. Constats de non-conformité</h2>
+  ${findings.map((f,i)=>`
+    <div class="p-find">
+      <h3>Constat n°${i+1} — ${f.prioLbl} (${f.horizon})</h3>
+      <b>${f.crit.q}</b> <small>(${f.dom.name} — ${f.crit.ref} — poids ${f.crit.w} — ${f.v==='nc'?'non conforme':'partiellement conforme'})</small>
+      <p><b>Constat :</b> ${f.risk}</p>
+      <p><b>Preuve / situation :</b> ${esc(f.ev)||'<i>non documentée — conformité déclarée</i>'}</p>
+      <p><b>Recommandation :</b> ${f.reco}</p>
+    </div>`).join('') || '<p>Aucune non-conformité identifiée.</p>'}
+
+  <h2>5. Plan d'action</h2>
+  <table><thead><tr><th>#</th><th>Action</th><th>Priorité</th><th>Responsable</th><th>Échéance</th><th>Statut</th></tr></thead><tbody>
+  ${findings.map((f,i)=>{const pl=state.plan[f.crit.id]||{};return `<tr><td>${i+1}</td><td><small>${f.reco}</small></td><td>${f.prioLbl}</td><td>${esc(pl.owner)||f.owner}</td><td>${pl.due?fmtDate(pl.due):f.horizon}</td><td>${pl.status||'À faire'}</td></tr>`;}).join('')}
+  </tbody></table>
+
+  <p style="margin-top:14px;font-size:10.5px;color:#475569">Rapport généré automatiquement par le Module 1 — Audit RGPD automatisé, le ${fmtDate(new Date().toISOString().slice(0,10))}. Document de travail ne remplaçant pas l'appréciation d'un conseil juridique. Méthodologie : critères pondérés 1-3, barème C/PC/NC/NA, exclusion des critères non applicables du calcul.</p>`;
+  $('#print-report').innerHTML = html;
+  toast('Rapport prêt — la fenêtre d\'impression s\'ouvre…');
+  setTimeout(()=>window.print(), 400);
+}
+
+/* ═══════════════ INITIALISATION & ÉVÉNEMENTS ═══════════════ */
+function bindContextFields(){
+  const map = {f_name:'name', f_siren:'siren', f_sector:'sector', f_size:'size', f_dpoName:'dpoName', f_dpoStatus:'dpoStatus', f_auditor:'auditor', f_date:'date'};
+  Object.entries(map).forEach(([el,k]) => {
+    const node = $('#'+el); if(!node) return;
+    node.oninput = node.onchange = () => { state.company[k] = node.value; save(); };
+  });
+}
+
+function bindRegistryForm(){
+  renderChips([]);
+  $('#p_transfer').onchange = () => {
+    const has = $('#p_transfer').value!=='none';
+    $('#p_transferGuaranteeWrap').style.display = has?'':'none';
+    if(!has) $('#p_transferGuarantee').value='';
+  };
+  $('#btnAddProcessing').onclick = () => {
+    const name = $('#p_name').value.trim(), basis = $('#p_legalBasis').value, purpose = $('#p_purpose').value.trim();
+    if(!name || !basis || !purpose){ toast('Nom, base légale et finalité sont requis'); return; }
+    const entry = {
+      name, legalBasis:basis, purpose,
+      dataCats: collectChips(),
+      retention: $('#p_retention').value.trim(),
+      recipients: $('#p_recipients').value.trim(),
+      processors: $('#p_processors').value.trim(),
+      transfer: $('#p_transfer').value,
+      transferGuarantee: $('#p_transferGuarantee').value
+    };
+    if(editingIdx>=0){ state.processing[editingIdx] = entry; editingIdx=-1; toast('Traitement modifié'); }
+    else { state.processing.push(entry); toast('Traitement ajouté au registre — le questionnaire s\'adapte'); }
+    save(); resetProcessingForm(); renderRegistry();
+  };
+  $('#btnCancelEdit').onclick = () => { editingIdx=-1; resetProcessingForm(); renderRegistry(); };
+}
+function resetProcessingForm(){
+  ['p_name','p_purpose','p_retention','p_recipients','p_processors'].forEach(id=>$('#'+id).value='');
+  $('#p_legalBasis').value=''; $('#p_transfer').value='none'; $('#p_transferGuarantee').value='';
+  $('#p_transferGuaranteeWrap').style.display='none';
+  renderChips([]);
+}
+
+function bindNav(){
+  $$('[data-nav]').forEach(b => b.onclick = () => {
+    const dir = b.dataset.nav==='next'?'next':'prev';
+    const order = [0,1,2,3,4,5];
+    const idx = order.indexOf(state.screen);
+    let target = dir==='next' ? order[Math.min(idx+1, order.length-1)] : order[Math.max(idx-1,0)];
+    // validation de l'étape contexte
+    if(state.screen===1 && dir==='next'){
+      if(!state.company.name || !state.company.auditor){ toast('Raison sociale et auditeur sont requis pour continuer'); return; }
+    }
+    // recalcul à l'entrée des résultats
+    if(target===4){ const s=computeScores(); if(s.nAnswered===0){ toast('Répondez d\'abord au questionnaire (étape 3)'); return; } }
+    goTo(target);
+  });
+  $('#btnBackHome').onclick = () => { toast('Audit terminé — pensez à exporter le dossier'); goTo(0); };
+}
+
+function renderAll(){
+  renderStepper();
+  $$('.screen').forEach(s => s.classList.remove('visible'));
+  $('#screen-'+state.screen).classList.add('visible');
+  renderHome();
+  if(state.screen===1) renderContext();
+  if(state.screen===2){ renderRegistry(); }
+  if(state.screen===3) renderQuestionnaire();
+  if(state.screen===4) renderResults();
+  if(state.screen===5) renderActionPlan();
+  save();
+}
+
+function loadDemo(){
+  state = JSON.parse(JSON.stringify({
+    screen:1, company:DEMO.company, processing:DEMO.processing, answers:DEMO.answers, plan:{}
+  }));
+  // échéances auto du plan
+  buildFindings().forEach(f => { state.plan[f.crit.id] = {owner:'', status:'À faire', due:autoDue(f.prio)}; });
+  save(); goTo(1);
+  toast('Scénario « Atelier Vermeil » chargé — cliquez sur les étapes pour explorer');
+}
+
+/* ── Boot ── */
+document.addEventListener('DOMContentLoaded', () => {
+  bindContextFields(); bindRegistryForm(); bindNav();
+  $('#btnDemo').onclick = () => { if(hasData() && !confirm('Charger le scénario remplacera l\'audit en cours. Continuer ?')) return; loadDemo(); };
+  $('#startDemo').onclick = () => { if(hasData() && !confirm('Charger le scénario remplacera l\'audit en cours. Continuer ?')) return; loadDemo(); };
+  $('#startNew').onclick = () => { goTo(1); };
+  $('#startResume').onclick = () => { if(hasData()) goTo(Math.max(1, state.screen||1)); };
+  $('#btnReset').onclick = () => {
+    if(!confirm('Réinitialiser complètement l\'audit ? Toutes les données locales seront effacées.')) return;
+    localStorage.removeItem('audit_rgpd_state');
+    state = {screen:0, company:{name:'',siren:'',sector:'',size:'',dpoName:'',dpoStatus:'',auditor:'',date:''}, processing:[], answers:{}, plan:{}};
+    renderAll(); toast('Audit réinitialisé');
+  };
+  const resumed = load();
+  renderAll();
+});
+</script>
+</body>
+</html>
