@@ -23,3 +23,14 @@ class AuditLog(TenantModel):
     user_email = db.Column(db.String(120), nullable=False)
     action = db.Column(db.String(255), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Iso27001Control(TenantModel):
+    """ Module 2 : Suivi de la conformité ISO 27001 (Annexe A) """
+    id = db.Column(db.Integer, primary_key=True)
+    company_name = db.Column(db.String(120), nullable=False)
+    control_domain = db.Column(db.String(150), nullable=False)  # Ex: A.9 Contrôle d'accès
+    control_title = db.Column(db.String(200), nullable=False)
+    implementation_status = db.Column(db.String(50), default="Non implémenté") # Implémenté, Partiel, Non implémenté
+    evidence_notes = db.Column(db.Text, nullable=True) # Justificatifs ou politiques associées
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
