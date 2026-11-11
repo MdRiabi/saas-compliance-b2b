@@ -126,6 +126,114 @@ class TenantAuthTests(unittest.TestCase):
         self.assertEqual(controls_response.status_code, 200)
         self.assertEqual([item["name"] for item in controls_response.get_json()], ["Control A"])
 
+    def test_iso_checklist_renders_catalog_filters_and_editor(self):
+        self.login()
+        response = self.client.get("/iso27001")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'id="catalog_id"', response.data)
+        self.assertIn(b"A.5.1", response.data)
+        self.assertIn(b'id="controlSearch"', response.data)
+        self.assertIn(b'id="statusFilter"', response.data)
+        self.assertIn(b'id="editControlDrawer"', response.data)
+        self.assertIn(b"Progression pr\xc3\xa9visionnelle", response.data)
+        self.assertNotIn(b'name="tenant_id"', response.data)
+
+    def test_catalog_addition_and_duplicate_prevention_are_tenant_scoped(self):
+        self.login()
+        response = self.client.post(
+            "/iso27001",
+            data={
+                "catalog_id": "A.5.1",
+                "implementation_status": "En cours",
+                "evidence_notes": "Politique interne en préparation",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        response = self.client.post(
+            "/iso27001",
+            data={"catalog_id": "A.5.1", "implementation_status": "Non démarré"},
+        )
+        self.assertEqual(response.status_code, 409)
+
+        with self.app.app_context():
+            control = Iso27001Control.query.filter_by(
+                tenant_id="tenant-a",
+                control_domain="A.5.1 — Organisationnel",
+            ).one()
+            self.assertEqual(control.control_title, "Politique de sécurité de l’information")
+            self.assertEqual(control.implementation_status, "En cours")
+            self.assertEqual(control.company_name, "tenant-a")
+            self.assertEqual(
+                Iso27001Control.query.filter_by(
+                    tenant_id="tenant-b",
+                    control_domain="A.5.1 — Organisationnel",
+                ).count(),
+                0,
+            )
+
+        self.assertEqual(
+            self.client.post(
+                "/iso27001",
+                data={"catalog_id": "A.999", "implementation_status": "Non démarré"},
+            ).status_code,
+            400,
+        )
+
+    def test_iso_edit_is_tenant_scoped_and_validates_status(self):
+        self.login()
+        response = self.client.post(
+            "/iso27001/1/edit",
+            data={
+                "implementation_status": "Implémenté",
+                "evidence_notes": "Procédure validée",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            self.client.post(
+                "/iso27001/2/edit",
+                data={"implementation_status": "Implémenté"},
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/iso27001/1/edit",
+                data={"implementation_status": "falsified"},
+            ).status_code,
+            400,
+        )
+
+        with self.app.app_context():
+            control = db.session.get(Iso27001Control, 1)
+            self.assertEqual(control.tenant_id, "tenant-a")
+            self.assertEqual(control.implementation_status, "Implémenté")
+            self.assertEqual(control.evidence_notes, "Procédure validée")
+
+    def test_iso_progress_excludes_non_applicable_controls(self):
+        self.login()
+        response = self.client.post(
+            "/iso/checklist",
+            json={
+                "controls": [
+                    {"status": "Implémenté"},
+                    {"status": "En cours"},
+                    {"status": "Non applicable"},
+                ]
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["controls_checked"], 3)
+        self.assertEqual(response.get_json()["controls_implemented"], 1)
+        self.assertEqual(response.get_json()["compliance_score"], "50.0%")
+
+        empty_response = self.client.post("/iso/checklist", json={"controls": []})
+        self.assertEqual(empty_response.status_code, 201)
+        self.assertEqual(empty_response.get_json()["controls_checked"], 0)
+        self.assertEqual(empty_response.get_json()["compliance_score"], "0.0%")
+
     def test_writes_ignore_tenant_ids_supplied_by_client(self):
         self.login()
 
