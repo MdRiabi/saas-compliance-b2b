@@ -17,6 +17,10 @@
                     <li class="nav-item mb-2"><a href="/iso27001" class="nav-link active text-info">2. Checklist ISO 27001</a></li>
                     <li class="nav-item mb-2"><a href="#" class="nav-link text-white">3. Politiques Sécurité</a></li>
                 </ul>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-outline-light btn-sm" type="submit">Se déconnecter</button>
+                </form>
             </nav>
 
             <!-- Main content -->
@@ -84,12 +88,13 @@
                     </div>
                 </section>
 
+                {% if can_write %}
                 <section class="card border-0 shadow-sm mb-4">
                     <div class="card-body p-4">
                         <h2 class="h5 mb-1">Ajouter un contrôle</h2>
                         <p class="text-secondary small mb-3">Enregistrez une mesure de sécurité et son état d’avancement.</p>
                         <form method="post" action="{{ url_for('iso.iso_dashboard') }}">
-                            <input type="hidden" name="tenant_id" value="{{ tenant_id }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="company_name" value="{{ controls[0].company_name if controls else 'Acme Corp' }}">
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -119,6 +124,7 @@
                         </form>
                     </div>
                 </section>
+                {% endif %}
 
                 <section class="card border-0 shadow-sm">
                     <div class="card-body p-4">

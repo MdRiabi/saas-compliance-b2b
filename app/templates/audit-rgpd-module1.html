@@ -597,13 +597,14 @@ let state = {
 };
 
 /* ── Persistance locale (localStorage) ── */
+const STORAGE_KEY = 'audit_rgpd_state:' + {{ tenant_id|tojson }};
 function save(){
-  try{ localStorage.setItem('audit_rgpd_state', JSON.stringify(state)); }catch(e){}
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
   $('#startResume').classList.toggle('disabled', !hasData());
 }
 function load(){
   try{
-    const raw = localStorage.getItem('audit_rgpd_state');
+    const raw = localStorage.getItem(STORAGE_KEY);
     if(raw){ state = JSON.parse(raw); return true; }
   }catch(e){}
   return false;
@@ -1250,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#startResume').onclick = () => { if(hasData()) goTo(Math.max(1, state.screen||1)); };
   $('#btnReset').onclick = () => {
     if(!confirm('Réinitialiser complètement l\'audit ? Toutes les données locales seront effacées.')) return;
-    localStorage.removeItem('audit_rgpd_state');
+    localStorage.removeItem(STORAGE_KEY);
     state = {screen:0, company:{name:'',siren:'',sector:'',size:'',dpoName:'',dpoStatus:'',auditor:'',date:''}, processing:[], answers:{}, plan:{}};
     renderAll(); toast('Audit réinitialisé');
   };
