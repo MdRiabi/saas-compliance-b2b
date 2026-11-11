@@ -125,6 +125,7 @@ class TenantAuthTests(unittest.TestCase):
         controls_response = self.client.get("/controls?tenant_id=tenant-b")
         self.assertEqual(controls_response.status_code, 200)
         self.assertEqual([item["name"] for item in controls_response.get_json()], ["Control A"])
+        self.assertEqual(controls_response.get_json()[0]["status"], "Non démarré")
 
     def test_iso_checklist_renders_catalog_filters_and_editor(self):
         self.login()
@@ -313,6 +314,11 @@ class TenantAuthTests(unittest.TestCase):
 
     def test_auditor_is_read_only(self):
         self.login("auditor@example.test")
+        dashboard = self.client.get("/iso27001")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertNotIn(b'id="catalog_id"', dashboard.data)
+        self.assertNotIn(b'id="editControlDrawer"', dashboard.data)
+
         write_requests = (
             ("/iso27001", {}),
             ("/controls", {"json": {"name": "Forbidden"}}),

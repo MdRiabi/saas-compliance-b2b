@@ -268,16 +268,36 @@ def iso_dashboard():
     if request.method == "POST":
         if current_user.role not in WRITE_ROLES:
             abort(403)
-        company_name = request.form.get("company_name", tenant_id).strip()
-        control_domain = request.form.get("control_domain", "").strip()
-        control_title = request.form.get("control_title", "").strip()
+        catalog_id = request.form.get("catalog_id", "")
+        catalog_control = _catalog_control(catalog_id) if catalog_id else None
+        if catalog_id and catalog_control is None:
+            abort(400, description="Unknown ISO control.")
+
         implementation_status = request.form.get("implementation_status", "")
-        if not company_name or not control_domain or not control_title:
-            abort(400, description="Company, domain, and control title are required.")
-        if len(company_name) > 120 or len(control_domain) > 150 or len(control_title) > 200:
-            abort(400, description="Company, domain, or control title is too long.")
         if implementation_status not in CONTROL_STATUSES | set(LEGACY_STATUS_MAP):
             abort(400, description="Invalid control status.")
+
+        evidence_notes = request.form.get("evidence_notes", "").strip()
+        if len(evidence_notes) > 5000:
+            abort(400, description="Evidence notes are too long.")
+
+        if catalog_control:
+            control_domain = f'{catalog_control["id"]} — {catalog_control["domain"]}'
+            control_title = catalog_control["title"]
+            if Iso27001Control.query.filter_by(
+                tenant_id=tenant_id,
+                control_domain=control_domain,
+            ).first():
+                abort(409, description="This ISO control is already on the checklist.")
+            company_name = tenant_id
+        else:
+            company_name = request.form.get("company_name", tenant_id).strip()
+            control_domain = request.form.get("control_domain", "").strip()
+            control_title = request.form.get("control_title", "").strip()
+            if not company_name or not control_domain or not control_title:
+                abort(400, description="Company, domain, and control title are required.")
+            if len(company_name) > 120 or len(control_domain) > 150 or len(control_title) > 200:
+                abort(400, description="Company, domain, or control title is too long.")
 
         control = Iso27001Control(
             tenant_id=tenant_id,
@@ -285,7 +305,7 @@ def iso_dashboard():
             control_domain=control_domain,
             control_title=control_title,
             implementation_status=_normalize_status(implementation_status),
-            evidence_notes=request.form.get("evidence_notes"),
+            evidence_notes=evidence_notes or None,
         )
         db.session.add(control)
         db.session.commit()
