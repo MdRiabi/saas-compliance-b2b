@@ -79,6 +79,39 @@ class TenantAuthTests(unittest.TestCase):
         response = self.client.get("/login")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'name="csrf_token"', response.data)
+        self.assertIn(b'id="togglePassword"', response.data)
+        self.assertIn(b'autocomplete="username"', response.data)
+        self.assertIn(b'autocomplete="current-password"', response.data)
+
+    def test_login_preserves_email_and_shows_generic_error(self):
+        response = self.client.post(
+            "/login",
+            data={"email": "UNKNOWN@example.test", "password": "wrong-password"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'value="unknown@example.test"', response.data)
+        self.assertIn(b"Identifiants invalides.", response.data)
+        self.assertNotIn(b"UNKNOWN@example.test", response.data)
+
+    def test_login_redirect_accepts_only_local_relative_targets(self):
+        safe_response = self.client.post(
+            "/login?next=%2Fiso27001",
+            data={"email": "compliance@example.test", "password": "test-password"},
+        )
+        self.assertEqual(safe_response.status_code, 302)
+        self.assertEqual(safe_response.headers["Location"], "/iso27001")
+
+        self.client.post("/logout")
+        for target in ("https://attacker.example", "//attacker.example", r"\\attacker.example"):
+            with self.subTest(target=target):
+                response = self.client.post(
+                    "/login",
+                    query_string={"next": target},
+                    data={"email": "compliance@example.test", "password": "test-password"},
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.headers["Location"], "/")
+                self.client.post("/logout")
 
     def test_operator_cli_creates_tenant_scoped_user(self):
         result = self.app.test_cli_runner().invoke(

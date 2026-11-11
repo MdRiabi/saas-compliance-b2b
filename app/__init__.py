@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlsplit
 
 import click
 from dotenv import load_dotenv
@@ -13,6 +14,15 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+
+
+def _safe_login_redirect(target):
+    if not target or "\\" in target or any(ord(char) < 32 for char in target):
+        return None
+    parsed = urlsplit(target)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/") or parsed.path.startswith("//"):
+        return None
+    return target
 
 
 def create_app(config=None):
@@ -52,12 +62,15 @@ def create_app(config=None):
 
             email = request.form.get("email", "").strip().lower()
             password = request.form.get("password", "")
-            user = User.query.filter_by(email=email).first()
-            if user and user.check_password(password):
+            user = User.query.filter_by(email=email).first() if email else None
+            if user and password and user.check_password(password):
                 login_user(user)
-                return redirect(url_for("index"))
+                return redirect(_safe_login_redirect(request.args.get("next")) or url_for("index"))
             flash("Identifiants invalides.", "error")
-        return render_template("login.html")
+        return render_template(
+            "login.html",
+            email=request.form.get("email", "").strip().lower(),
+        )
 
     @app.route("/logout", methods=["POST"])
     def logout():

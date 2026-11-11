@@ -3,24 +3,222 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Connexion - SecureFrame</title>
+    <meta name="color-scheme" content="light">
+    <title>Connexion · SecureFrame</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sf-navy: #11233f;
+            --sf-blue: #2563eb;
+            --sf-muted: #64748b;
+            --sf-border: #e2e8f0;
+        }
+
+        body {
+            background: #f4f7fb;
+            color: var(--sf-navy);
+            min-height: 100vh;
+        }
+
+        .login-shell {
+            max-width: 1080px;
+            min-height: min(680px, calc(100vh - 3rem));
+        }
+
+        .login-card {
+            border: 1px solid rgba(226, 232, 240, .9);
+            border-radius: 1.25rem;
+            box-shadow: 0 24px 70px rgba(15, 35, 65, .12);
+            overflow: hidden;
+        }
+
+        .brand-panel {
+            background:
+                radial-gradient(circle at 85% 15%, rgba(96, 165, 250, .32), transparent 30%),
+                linear-gradient(145deg, #10213c 0%, #173c70 58%, #1d4ed8 130%);
+            color: #fff;
+            min-height: 100%;
+            position: relative;
+        }
+
+        .brand-panel::after {
+            border: 1px solid rgba(255, 255, 255, .13);
+            border-radius: 50%;
+            content: "";
+            height: 360px;
+            pointer-events: none;
+            position: absolute;
+            right: -190px;
+            top: 52%;
+            transform: translateY(-50%);
+            width: 360px;
+        }
+
+        .brand-wordmark { letter-spacing: -.04em; }
+        .brand-dot { color: #60a5fa; }
+        .brand-kicker { color: #bfdbfe; letter-spacing: .12em; }
+        .brand-copy { color: #dbeafe; max-width: 25rem; }
+        .security-note {
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .16);
+            border-radius: .9rem;
+            color: #eff6ff;
+        }
+
+        .form-control {
+            border-color: #cbd5e1;
+            min-height: 3rem;
+        }
+
+        .form-control:focus {
+            border-color: var(--sf-blue);
+            box-shadow: 0 0 0 .22rem rgba(37, 99, 235, .15);
+        }
+
+        .input-group .form-control { border-right: 0; }
+        .input-group .btn { border-color: #cbd5e1; }
+        .input-group:focus-within .btn { border-color: var(--sf-blue); }
+        .login-submit { min-height: 3rem; }
+        .helper-text { color: var(--sf-muted); }
+        .brand-panel-content { position: relative; z-index: 1; }
+
+        @media (max-width: 767.98px) {
+            .login-shell { min-height: auto; }
+            .brand-panel { min-height: auto; }
+            .brand-panel::after { height: 220px; right: -130px; width: 220px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; }
+        }
+    </style>
 </head>
 <body>
-    <main>
-        <h1>Connexion</h1>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% for category, message in messages %}
-                <p role="alert">{{ message }}</p>
-            {% endfor %}
-        {% endwith %}
-        <form method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label for="email">Adresse e-mail</label>
-            <input id="email" name="email" type="email" autocomplete="username" required>
-            <label for="password">Mot de passe</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required>
-            <button type="submit">Se connecter</button>
-        </form>
+    <main class="container py-4 py-md-5 d-flex align-items-center justify-content-center">
+        <div class="login-shell w-100">
+            <div class="login-card bg-white row g-0">
+                <section class="brand-panel col-md-5 p-4 p-lg-5 d-flex align-items-center" aria-label="Présentation de SecureFrame">
+                    <div class="brand-panel-content">
+                        <a class="brand-wordmark text-decoration-none text-white fw-bold fs-3" href="{{ url_for('login') }}" aria-label="SecureFrame, accueil">
+                            Secure<span class="brand-dot">Frame</span>
+                        </a>
+                        <p class="brand-kicker text-uppercase small fw-semibold mt-5 mb-2">Votre espace conformité</p>
+                        <h1 class="display-6 fw-semibold mb-3">La sécurité, en toute clarté.</h1>
+                        <p class="brand-copy lh-lg mb-4">
+                            Retrouvez vos évaluations et votre suivi de sécurité dans un espace dédié à votre organisation.
+                        </p>
+                        <div class="security-note d-flex gap-3 align-items-start p-3">
+                            <span class="fs-5" aria-hidden="true">⌑</span>
+                            <div>
+                                <p class="fw-semibold mb-1">Accès protégé</p>
+                                <p class="small mb-0 text-white-50">Connectez-vous avec le compte fourni par votre administrateur.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="col-md-7 p-4 p-sm-5 p-lg-5 d-flex align-items-center" aria-labelledby="loginTitle">
+                    <div class="w-100 mx-auto" style="max-width: 430px;">
+                        <div class="mb-4">
+                            <p class="text-primary text-uppercase fw-semibold small mb-2">Bienvenue</p>
+                            <h2 class="h2 fw-semibold mb-2" id="loginTitle">Connexion</h2>
+                            <p class="helper-text mb-0">Saisissez vos identifiants pour accéder à votre espace.</p>
+                        </div>
+
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+                                        <span aria-hidden="true">!</span>
+                                        <span>{{ message }}</span>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+
+                        <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}" id="loginForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="email">Adresse e-mail</label>
+                                <input
+                                    class="form-control"
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    value="{{ email }}"
+                                    autocomplete="username"
+                                    inputmode="email"
+                                    maxlength="120"
+                                    placeholder="nom@entreprise.com"
+                                    required
+                                    autofocus>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="password">Mot de passe</label>
+                                <div class="input-group">
+                                    <input
+                                        class="form-control"
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        autocomplete="current-password"
+                                        placeholder="Votre mot de passe"
+                                        required>
+                                    <button
+                                        class="btn btn-outline-secondary px-3"
+                                        type="button"
+                                        id="togglePassword"
+                                        aria-label="Afficher le mot de passe"
+                                        aria-pressed="false">
+                                        <span id="passwordToggleText">Afficher</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary login-submit w-100 fw-semibold mt-3" type="submit" id="submitButton">
+                                <span id="submitLabel">Se connecter</span>
+                                <span id="submitSpinner" class="spinner-border spinner-border-sm ms-2 d-none" aria-hidden="true"></span>
+                            </button>
+                        </form>
+
+                        <p class="helper-text small text-center mt-4 mb-0">
+                            Besoin d’un compte ? Contactez l’administrateur de votre espace.
+                        </p>
+                    </div>
+                </section>
+            </div>
+            <p class="helper-text small text-center mt-3 mb-0">SecureFrame · Espace de démonstration conformité</p>
+        </div>
     </main>
+
+    <script>
+        (() => {
+            const password = document.getElementById("password");
+            const toggle = document.getElementById("togglePassword");
+            const toggleText = document.getElementById("passwordToggleText");
+            const form = document.getElementById("loginForm");
+            const submitButton = document.getElementById("submitButton");
+            const submitLabel = document.getElementById("submitLabel");
+            const submitSpinner = document.getElementById("submitSpinner");
+
+            toggle.addEventListener("click", () => {
+                const reveal = password.type === "password";
+                password.type = reveal ? "text" : "password";
+                toggleText.textContent = reveal ? "Masquer" : "Afficher";
+                toggle.setAttribute("aria-label", reveal ? "Masquer le mot de passe" : "Afficher le mot de passe");
+                toggle.setAttribute("aria-pressed", String(reveal));
+                password.focus();
+            });
+
+            form.addEventListener("submit", () => {
+                if (!form.reportValidity()) return;
+                submitButton.disabled = true;
+                submitLabel.textContent = "Connexion…";
+                submitSpinner.classList.remove("d-none");
+            });
+        })();
+    </script>
 </body>
 </html>
