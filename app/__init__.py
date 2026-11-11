@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 import os
@@ -21,7 +21,7 @@ def create_app():
     # 1. Route racine (Page d'accueil du SaaS)
     @app.route('/')
     def index():
-        return render_template('index.html')
+        return redirect(url_for('iso.iso_dashboard'))
 
     # IMPORT LOCAL DES BLUEPRINTS (Évite l'importation circulaire)
     from app.routes_rgpd import rgpd_bp

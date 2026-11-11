@@ -237,6 +237,7 @@ tr:last-child td{border-bottom:none}
     <div class="side-actions">
       <button class="primary" id="btnDemo">⚡ Charger le scénario réel</button>
       <button id="btnReset">↺ Réinitialiser</button>
+      <button id="btnHome">🏠 Page Principal</button>
     </div>
     <div class="side-foot">Prototype fonctionnel — données enregistrées localement (navigateur). Référentiel : RGPD (UE) 2016/679, aligné CNIL &amp; ISO 27701.</div>
   </aside>
@@ -1243,6 +1244,7 @@ function loadDemo(){
 document.addEventListener('DOMContentLoaded', () => {
   bindContextFields(); bindRegistryForm(); bindNav();
   $('#btnDemo').onclick = () => { if(hasData() && !confirm('Charger le scénario remplacera l\'audit en cours. Continuer ?')) return; loadDemo(); };
+  $('#btnHome').onclick = () => { window.location.href = '/iso27001'; };
   $('#startDemo').onclick = () => { if(hasData() && !confirm('Charger le scénario remplacera l\'audit en cours. Continuer ?')) return; loadDemo(); };
   $('#startNew').onclick = () => { goTo(1); };
   $('#startResume').onclick = () => { if(hasData()) goTo(Math.max(1, state.screen||1)); };
@@ -1252,6 +1254,7 @@ document.addEventListener('DOMContentLoaded', () => {
     state = {screen:0, company:{name:'',siren:'',sector:'',size:'',dpoName:'',dpoStatus:'',auditor:'',date:''}, processing:[], answers:{}, plan:{}};
     renderAll(); toast('Audit réinitialisé');
   };
+
   const resumed = load();
   renderAll();
 });
