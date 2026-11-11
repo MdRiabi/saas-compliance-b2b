@@ -1,11 +1,42 @@
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
-from app import db
-from app.models import AuditLog
+from flask_login import login_required, current_user
+from app import db, csrf
+from app.models import AuditLog, ISOControl
 from app.models import Iso27001Control
 import json
 
 # Déclaration unique du Blueprint
 iso_bp = Blueprint('iso', __name__)
+
+@iso_bp.route('/controls', methods=['GET'])
+@login_required
+def get_controls():
+    # SECURITY FIX: tenant_id comes from the session (current_user), NEVER from the request
+    tenant_id = current_user.tenant_id
+    
+    controls = ISOControl.query.filter_by(tenant_id=tenant_id).all()
+    return jsonify([{"id": c.id, "name": c.name, "status": c.status} for c in controls])
+
+@iso_bp.route('/controls', methods=['POST'])
+@login_required
+def add_control():
+    # CSRF is validated automatically by Flask-WTF on POST requests
+    tenant_id = current_user.tenant_id
+    
+    # Auditor role check (Server-side access control)
+    if current_user.role == 'auditor':
+        return jsonify({"error": "Auditors have read-only access"}), 403
+
+    data = request.get_json()
+    new_control = ISOControl(
+        tenant_id=tenant_id, # Forced to current user's tenant
+        name=data.get('name'),
+        status=data.get('status', 'Non démarré')
+    )
+    db.session.add(new_control)
+    db.session.commit()
+    
+    return jsonify({"message": "Control added", "id": new_control.id}), 201
 
 @iso_bp.route('/iso/checklist', methods=['POST'])
 def save_iso_checklist():
