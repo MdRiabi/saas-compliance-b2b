@@ -1,9 +1,13 @@
+import hmac
 import os
+import re
+import time
 from urllib.parse import urlsplit
 
 import click
+import pyotp
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -24,6 +28,48 @@ def _safe_login_redirect(target):
     if parsed.scheme or parsed.netloc or not parsed.path.startswith("/") or parsed.path.startswith("//"):
         return None
     return target
+
+
+def _current_totp_step(interval):
+    return int(time.time() // interval)
+
+
+def _consume_totp_code(user, code):
+    if (
+        not user.mfa_secret
+        or not isinstance(code, str)
+        or not re.fullmatch(r"[0-9]{6}", code)
+    ):
+        return False
+
+    totp = pyotp.TOTP(user.mfa_secret)
+    current_step = _current_totp_step(totp.interval)
+    last_step = user.mfa_last_verified_step
+    for step in (current_step, current_step - 1, current_step + 1):
+        if last_step is not None and step <= last_step:
+            continue
+        expected_code = totp.at(step * totp.interval)
+        if hmac.compare_digest(expected_code, code):
+            user.mfa_last_verified_step = step
+            return True
+    return False
+
+
+def _finish_login(user, target=None, mfa_verified=False):
+    from app.audit import add_audit_event
+
+    add_audit_event(
+        tenant_id=user.tenant_id,
+        actor_email=user.email,
+        action="auth.login",
+        resource_type="authentication",
+    )
+    db.session.commit()
+    session.clear()
+    login_user(user)
+    if mfa_verified:
+        session["_admin_mfa_user_id"] = user.id
+    return redirect(target or url_for("index"))
 
 
 def create_app(config=None):
@@ -53,6 +99,21 @@ def create_app(config=None):
     login_manager.login_view = "login"
     csrf.init_app(app)
 
+    @app.before_request
+    def require_admin_mfa():
+        if (
+            current_user.is_authenticated
+            and current_user.role == "admin"
+            and (
+                not current_user.mfa_enabled
+                or session.get("_admin_mfa_user_id") != current_user.id
+            )
+        ):
+            logout_user()
+            session.clear()
+            flash("Reconnectez-vous et terminez la vérification MFA.", "error")
+            return redirect(url_for("login"))
+
     @app.route("/")
     def index():
         if not current_user.is_authenticated:
@@ -62,25 +123,29 @@ def create_app(config=None):
     @app.route("/login", methods=["GET", "POST"])
     def login():
         from app.audit import add_audit_event
+        from app.models import User
 
         if current_user.is_authenticated:
             return redirect(url_for("index"))
         if request.method == "POST":
-            from app.models import User
-
             email = request.form.get("email", "").strip().lower()
             password = request.form.get("password", "")
             user = User.query.filter_by(email=email).first() if email else None
             if user and password and user.check_password(password):
-                add_audit_event(
-                    tenant_id=user.tenant_id,
-                    actor_email=user.email,
-                    action="auth.login",
-                    resource_type="authentication",
-                )
-                db.session.commit()
-                login_user(user)
-                return redirect(_safe_login_redirect(request.args.get("next")) or url_for("index"))
+                target = _safe_login_redirect(request.args.get("next"))
+                if user.role == "admin":
+                    session.clear()
+                    session["_mfa_next"] = target
+                    if not user.mfa_enabled or not user.mfa_secret:
+                        if not user.mfa_secret:
+                            user.mfa_secret = pyotp.random_base32()
+                        user.mfa_enabled = False
+                        db.session.commit()
+                        session["_mfa_enrollment_user_id"] = user.id
+                        return redirect(url_for("mfa_setup"))
+                    session["_mfa_pending_user_id"] = user.id
+                    return redirect(url_for("mfa_verify"))
+                return _finish_login(user, target)
             add_audit_event(
                 tenant_id=user.tenant_id if user else None,
                 actor_email=user.email if user else None,
@@ -108,7 +173,79 @@ def create_app(config=None):
             )
             db.session.commit()
             logout_user()
+        session.clear()
         return redirect(url_for("login"))
+
+    @app.route("/mfa/setup", methods=["GET", "POST"])
+    def mfa_setup():
+        from app.audit import add_audit_event
+        from app.models import User
+
+        user_id = session.get("_mfa_enrollment_user_id")
+        user = db.session.get(User, user_id) if isinstance(user_id, int) else None
+        if user is None or user.role != "admin" or user.mfa_enabled:
+            session.clear()
+            return redirect(url_for("login"))
+
+        if request.method == "POST":
+            if not _consume_totp_code(user, request.form.get("code", "").strip()):
+                add_audit_event(
+                    tenant_id=user.tenant_id,
+                    actor_email=user.email,
+                    action="auth.mfa.enroll",
+                    result="failure",
+                    resource_type="authentication",
+                )
+                db.session.commit()
+                flash("Code MFA invalide. Réessayez.", "error")
+            else:
+                user.mfa_enabled = True
+                add_audit_event(
+                    tenant_id=user.tenant_id,
+                    actor_email=user.email,
+                    action="auth.mfa.enroll",
+                    resource_type="authentication",
+                )
+                db.session.commit()
+                target = _safe_login_redirect(session.get("_mfa_next"))
+                return _finish_login(user, target, mfa_verified=True)
+
+        return render_template("mfa.html", mode="setup", secret=user.mfa_secret)
+
+    @app.route("/mfa/verify", methods=["GET", "POST"])
+    def mfa_verify():
+        from app.audit import add_audit_event
+        from app.models import User
+
+        user_id = session.get("_mfa_pending_user_id")
+        user = db.session.get(User, user_id) if isinstance(user_id, int) else None
+        if user is None or user.role != "admin" or not user.mfa_enabled or not user.mfa_secret:
+            session.clear()
+            return redirect(url_for("login"))
+
+        if request.method == "POST":
+            if not _consume_totp_code(user, request.form.get("code", "").strip()):
+                add_audit_event(
+                    tenant_id=user.tenant_id,
+                    actor_email=user.email,
+                    action="auth.mfa.verify",
+                    result="failure",
+                    resource_type="authentication",
+                )
+                db.session.commit()
+                flash("Code MFA invalide. Réessayez.", "error")
+            else:
+                add_audit_event(
+                    tenant_id=user.tenant_id,
+                    actor_email=user.email,
+                    action="auth.mfa.verify",
+                    resource_type="authentication",
+                )
+                db.session.commit()
+                target = _safe_login_redirect(session.get("_mfa_next"))
+                return _finish_login(user, target, mfa_verified=True)
+
+        return render_template("mfa.html", mode="verify")
 
     @app.cli.command("create-user")
     @click.option("--email", prompt=True)
@@ -140,6 +277,32 @@ def create_app(config=None):
         db.session.add(user)
         db.session.commit()
         click.echo(f"Utilisateur créé pour le tenant {tenant_id}.")
+
+    @app.cli.command("reset-admin-mfa")
+    @click.option("--email", prompt=True)
+    @click.confirmation_option(
+        prompt="Confirmer la réinitialisation MFA ? Les sessions administrateur seront révoquées."
+    )
+    def reset_admin_mfa_command(email):
+        """Reset an administrator's MFA after an authorized out-of-band identity check."""
+        from app.audit import add_audit_event
+        from app.models import User
+
+        user = User.query.filter_by(email=email.strip().lower(), role="admin").first()
+        if user is None:
+            raise click.ClickException("Aucun compte administrateur avec cette adresse.")
+        user.mfa_secret = None
+        user.mfa_enabled = False
+        user.mfa_last_verified_step = None
+        add_audit_event(
+            tenant_id=user.tenant_id,
+            actor_email="system:cli-operator",
+            action="auth.mfa.reset",
+            resource_type="user",
+            resource_id=user.id,
+        )
+        db.session.commit()
+        click.echo("MFA réinitialisée. L’administrateur devra la reconfigurer à sa prochaine connexion.")
 
     @app.cli.command("export-audit-logs")
     def export_audit_logs_command():

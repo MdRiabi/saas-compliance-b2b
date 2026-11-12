@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
 
+import pyotp
+
 from app import create_app, db
 from app.models import AuditLog, Iso27001Control, RgpdAudit, Tenant, User
 from app.utils_aws import AuditExportResult
@@ -68,6 +70,14 @@ class TenantAuthTests(unittest.TestCase):
             "/login",
             data={"email": email, "password": "test-password"},
         )
+
+    def create_admin(self, email="admin@example.test"):
+        with self.app.app_context():
+            admin = User(email=email, role="admin", tenant_id="tenant-a")
+            admin.set_password("test-password")
+            db.session.add(admin)
+            db.session.commit()
+        return email
 
     def test_authentication_is_required(self):
         for path in ("/", "/rgpd/audit", "/rgpd/audits", "/iso27001", "/controls"):
@@ -151,6 +161,136 @@ class TenantAuthTests(unittest.TestCase):
             self.assertEqual(user.tenant_id, "tenant-cli")
             self.assertEqual(user.role, "admin")
             self.assertTrue(user.check_password("Strong-Test-Password"))
+
+    def test_admin_must_enroll_in_totp_before_access(self):
+        self.create_admin()
+        response = self.client.post(
+            "/login",
+            data={"email": "admin@example.test", "password": "test-password"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/mfa/setup")
+        self.assertEqual(self.client.get("/iso27001").status_code, 302)
+
+        setup_page = self.client.get("/mfa/setup")
+        self.assertEqual(setup_page.status_code, 200)
+        self.assertIn(b"Configurer l\xe2\x80\x99authentification MFA", setup_page.data)
+        self.assertIn(b'name="csrf_token"', setup_page.data)
+        with self.app.app_context():
+            admin = User.query.filter_by(email="admin@example.test").one()
+            secret = admin.mfa_secret
+            self.assertFalse(admin.mfa_enabled)
+
+        timestamp = 1_800_000_000
+        code = pyotp.TOTP(secret).at(timestamp)
+        with patch("app._current_totp_step", return_value=timestamp // 30):
+            response = self.client.post("/mfa/setup", data={"code": code})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get("/iso27001").status_code, 200)
+
+        with self.app.app_context():
+            admin = User.query.filter_by(email="admin@example.test").one()
+            self.assertTrue(admin.mfa_enabled)
+            self.assertIsNotNone(admin.mfa_last_verified_step)
+            self.assertEqual(
+                AuditLog.query.filter_by(
+                    action="auth.mfa.enroll",
+                    result="success",
+                ).count(),
+                1,
+            )
+
+    def test_admin_login_requires_fresh_totp_and_rejects_replayed_codes(self):
+        self.create_admin()
+        self.client.post(
+            "/login",
+            data={"email": "admin@example.test", "password": "test-password"},
+        )
+        with self.app.app_context():
+            secret = User.query.filter_by(email="admin@example.test").one().mfa_secret
+
+        enrollment_timestamp = 1_800_000_000
+        with patch("app._current_totp_step", return_value=enrollment_timestamp // 30):
+            self.client.post(
+                "/mfa/setup",
+                data={"code": pyotp.TOTP(secret).at(enrollment_timestamp)},
+            )
+        self.client.post("/logout")
+
+        response = self.client.post(
+            "/login",
+            data={"email": "admin@example.test", "password": "test-password"},
+        )
+        self.assertEqual(response.headers["Location"], "/mfa/verify")
+        self.assertEqual(self.client.get("/iso27001").status_code, 302)
+        invalid_response = self.client.post("/mfa/verify", data={"code": "invalid"})
+        self.assertEqual(invalid_response.status_code, 200)
+        self.assertIn(b"Code MFA invalide", invalid_response.data)
+
+        login_timestamp = enrollment_timestamp + 30
+        login_code = pyotp.TOTP(secret).at(login_timestamp)
+        with patch("app._current_totp_step", return_value=login_timestamp // 30):
+            response = self.client.post("/mfa/verify", data={"code": login_code})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get("/iso27001").status_code, 200)
+        self.client.post("/logout")
+
+        self.client.post(
+            "/login",
+            data={"email": "admin@example.test", "password": "test-password"},
+        )
+        with patch("app._current_totp_step", return_value=login_timestamp // 30):
+            response = self.client.post("/mfa/verify", data={"code": login_code})
+        self.assertEqual(response.status_code, 200)
+        with self.app.app_context():
+            self.assertEqual(
+                AuditLog.query.filter_by(
+                    action="auth.mfa.verify",
+                    result="failure",
+                ).count(),
+                2,
+            )
+
+    def test_legacy_admin_session_without_mfa_proof_is_rejected(self):
+        self.create_admin()
+        with self.app.app_context():
+            admin = User.query.filter_by(email="admin@example.test").one()
+            admin.mfa_secret = pyotp.random_base32()
+            admin.mfa_enabled = True
+            db.session.commit()
+            admin_id = admin.id
+
+        with self.client.session_transaction() as session:
+            session["_user_id"] = str(admin_id)
+            session["_fresh"] = True
+
+        response = self.client.get("/iso27001")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.headers["Location"])
+        with self.client.session_transaction() as session:
+            self.assertNotIn("_user_id", session)
+
+    def test_operator_cli_can_reset_admin_mfa_and_audit_the_action(self):
+        self.create_admin()
+        with self.app.app_context():
+            admin = User.query.filter_by(email="admin@example.test").one()
+            admin.mfa_secret = pyotp.random_base32()
+            admin.mfa_enabled = True
+            admin.mfa_last_verified_step = 123
+            db.session.commit()
+
+        result = self.app.test_cli_runner().invoke(
+            args=["reset-admin-mfa", "--email", "admin@example.test", "--yes"]
+        )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        with self.app.app_context():
+            admin = User.query.filter_by(email="admin@example.test").one()
+            self.assertIsNone(admin.mfa_secret)
+            self.assertFalse(admin.mfa_enabled)
+            self.assertIsNone(admin.mfa_last_verified_step)
+            event = AuditLog.query.filter_by(action="auth.mfa.reset").one()
+            self.assertEqual(event.user_email, "system:cli-operator")
 
     def test_reads_are_scoped_to_logged_in_tenant(self):
         self.login()
@@ -442,6 +582,8 @@ class TenantAuthTests(unittest.TestCase):
             session["_fresh"] = True
         response = client.post("/policies/generate", json={"policy_type": "password_policy"})
         self.assertEqual(response.status_code, 400)
+        self.assertEqual(client.post("/mfa/setup", data={"code": "123456"}).status_code, 400)
+        self.assertEqual(client.post("/mfa/verify", data={"code": "123456"}).status_code, 400)
         with csrf_app.app_context():
             db.drop_all()
 

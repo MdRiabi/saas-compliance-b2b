@@ -45,6 +45,8 @@ curl -I http://127.0.0.1:8000/login
 
 Une réponse HTTP confirme que l'application répond localement. Le processus ne doit pas écouter sur `0.0.0.0`.
 
+À la première connexion d'un compte `admin`, l'application exige l'enrôlement TOTP avant d'autoriser l'accès. En cas de perte du second facteur, un opérateur doit vérifier l'identité de la personne hors bande, puis lancer `python3 -m flask --app run.py reset-admin-mfa --email admin@example.com` depuis l'hôte, en remplaçant l'adresse par celle du compte. Confirmer l'opération à l'invite. Cette commande révoque les sessions admin et impose un nouvel enrôlement ; elle ne doit pas être exposée comme endpoint web.
+
 ## 4. Ouvrir un tunnel depuis le poste d'administration
 
 Dans un terminal local disposant de la clé SSH de l'instance, garder cette commande active :

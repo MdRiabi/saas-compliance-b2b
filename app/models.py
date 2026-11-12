@@ -65,6 +65,9 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # admin, compliance, auditor
     tenant_id = db.Column(db.String(64), db.ForeignKey('tenants.id'), nullable=False)
+    mfa_secret = db.Column(db.String(32), nullable=True)
+    mfa_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    mfa_last_verified_step = db.Column(db.Integer, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>{% if mode == "setup" %}Configurer la MFA{% else %}Vérification MFA{% endif %} · SecureFrame</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <main class="container min-vh-100 d-flex align-items-center justify-content-center py-4">
+        <section class="card shadow-sm border-0 w-100" style="max-width: 520px;">
+            <div class="card-body p-4 p-md-5">
+                {% if mode == "setup" %}
+                    <h1 class="h3 mb-3">Configurer l’authentification MFA</h1>
+                    <p>La MFA est obligatoire pour les comptes administrateur.</p>
+                    <p>Dans votre application d’authentification, ajoutez un compte TOTP en saisissant cette clé :</p>
+                    <p class="p-3 bg-light border rounded text-center">
+                        <code class="user-select-all fs-5">{{ secret }}</code>
+                    </p>
+                    <p class="small text-muted">Gardez cette clé privée. Saisissez ensuite le code temporaire à 6 chiffres affiché par l’application.</p>
+                {% else %}
+                    <h1 class="h3 mb-3">Vérification MFA</h1>
+                    <p>Saisissez le code temporaire à 6 chiffres de votre application d’authentification.</p>
+                {% endif %}
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-danger" role="alert">{{ message }}</div>
+                    {% endfor %}
+                {% endwith %}
+
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="form-label fw-semibold" for="code">Code d’authentification</label>
+                    <input
+                        class="form-control form-control-lg"
+                        id="code"
+                        name="code"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        required
+                        autofocus>
+                    <button class="btn btn-primary w-100 mt-4" type="submit">
+                        {% if mode == "setup" %}Activer la MFA{% else %}Vérifier et se connecter{% endif %}
+                    </button>
+                </form>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
