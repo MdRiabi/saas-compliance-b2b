@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -22,11 +22,19 @@ class RgpdAudit(TenantModel):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class AuditLog(TenantModel):
-    """ Piste d'audit interne (Remplace CloudTrail/Config dans le Lab) """
+    """Application audit event; it does not replace AWS CloudTrail."""
+    tenant_id = db.Column(db.String(64), nullable=True, index=True)
     id = db.Column(db.Integer, primary_key=True)
-    user_email = db.Column(db.String(120), nullable=False)
+    user_email = db.Column(db.String(120), nullable=True)
     action = db.Column(db.String(255), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    resource_type = db.Column(db.String(80), nullable=True)
+    resource_id = db.Column(db.String(128), nullable=True)
+    result = db.Column(db.String(20), nullable=True)
+    timestamp = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
 
 class Tenant(db.Model):

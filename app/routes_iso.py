@@ -5,7 +5,8 @@ from flask_login import current_user
 
 from app import db
 from app.auth import WRITE_ROLES, roles_required
-from app.models import AuditLog, Iso27001Control
+from app.audit import add_audit_event
+from app.models import Iso27001Control
 
 iso_bp = Blueprint("iso", __name__)
 STATUS_OPTIONS = ("Non démarré", "En cours", "Implémenté", "À revoir", "Non applicable")
@@ -177,6 +178,14 @@ def add_control():
         evidence_notes=evidence_notes,
     )
     db.session.add(control)
+    db.session.flush()
+    add_audit_event(
+        tenant_id=current_user.tenant_id,
+        actor_email=current_user.email,
+        action="iso27001.control.create",
+        resource_type="iso27001_control",
+        resource_id=control.id,
+    )
     db.session.commit()
     return jsonify({"message": "Control added", "id": control.id}), 201
 
@@ -197,12 +206,12 @@ def edit_iso_control(control_id):
 
     control.implementation_status = status
     control.evidence_notes = evidence_notes or None
-    db.session.add(
-        AuditLog(
-            tenant_id=current_user.tenant_id,
-            user_email=current_user.email,
-            action=f"Mise à jour du contrôle ISO 27001 {control.control_domain}",
-        )
+    add_audit_event(
+        tenant_id=current_user.tenant_id,
+        actor_email=current_user.email,
+        action="iso27001.control.update",
+        resource_type="iso27001_control",
+        resource_id=control.id,
     )
     db.session.commit()
     flash("Le contrôle a été mis à jour.", "success")
@@ -239,12 +248,11 @@ def save_iso_checklist():
         for control in controls
     )
     score = implemented / applicable_controls * 100 if applicable_controls else 0
-    db.session.add(
-        AuditLog(
-            tenant_id=current_user.tenant_id,
-            user_email=current_user.email,
-            action=f"Mise à jour Checklist ISO 27001 - Score: {score:.1f}%",
-        )
+    add_audit_event(
+        tenant_id=current_user.tenant_id,
+        actor_email=current_user.email,
+        action="iso27001.checklist.evaluate",
+        resource_type="iso27001_checklist",
     )
     db.session.commit()
 
@@ -308,6 +316,14 @@ def iso_dashboard():
             evidence_notes=evidence_notes or None,
         )
         db.session.add(control)
+        db.session.flush()
+        add_audit_event(
+            tenant_id=tenant_id,
+            actor_email=current_user.email,
+            action="iso27001.control.create",
+            resource_type="iso27001_control",
+            resource_id=control.id,
+        )
         db.session.commit()
         flash("Contrôle ISO 27001 mis à jour avec succès !", "success")
         return redirect(url_for("iso.iso_dashboard"))

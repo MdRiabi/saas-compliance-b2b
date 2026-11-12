@@ -3,7 +3,8 @@ from flask_login import current_user
 
 from app import db
 from app.auth import WRITE_ROLES, roles_required
-from app.models import AuditLog, RgpdAudit
+from app.audit import add_audit_event
+from app.models import RgpdAudit
 from app.utils_aws import upload_audit_report_to_s3
 
 rgpd_bp = Blueprint("rgpd", __name__, url_prefix="/rgpd")
@@ -78,7 +79,7 @@ def run_audit():
         "recommendations": recommendations,
     }
 
-    success, s3_path = upload_audit_report_to_s3(
+    export_result = upload_audit_report_to_s3(
         tenant_id,
         f"rgpd_audit_{processing_name.replace(' ', '_')}",
         report_payload,
@@ -92,24 +93,40 @@ def run_audit():
         status=status_eval,
         recommendations=" | ".join(recommendations) if recommendations else "Aucune recommandation majeure.",
     )
-    log_entry = AuditLog(
+    db.session.add(audit_record)
+    db.session.flush()
+    add_audit_event(
         tenant_id=tenant_id,
-        user_email=current_user.email,
-        action=f"Audit RGPD approfondi exécuté: {processing_name} (Score: {score}%) - Stocké sur S3: {success}",
+        actor_email=current_user.email,
+        action="rgpd.audit.run",
+        resource_type="rgpd_audit",
+        resource_id=audit_record.id,
     )
-    db.session.add_all([audit_record, log_entry])
+    add_audit_event(
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        action="s3.export",
+        result="success" if export_result.uploaded else "failure",
+        resource_type="rgpd_audit",
+        resource_id=audit_record.id,
+    )
     db.session.commit()
 
     return jsonify(
         {
-            "status": "success",
+            "status": "success" if export_result.uploaded else "partial",
             "tenant_id": tenant_id,
             "processing_name": processing_name,
             "compliance_score": f"{score}%",
             "evaluation": status_eval,
             "details": checks,
             "recommendations": recommendations,
-            "s3_storage": {"uploaded_to_aws": success, "path": s3_path},
+            "s3_storage": {
+                "uploaded_to_aws": export_result.uploaded,
+                "path": export_result.s3_uri,
+                "local_copy": export_result.local_path,
+                "error": export_result.error,
+            },
             "audit_id": audit_record.id,
         }
     ), 201

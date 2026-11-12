@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from app import create_app, db
 from app.models import AuditLog, Iso27001Control, RgpdAudit, Tenant, User
+from app.utils_aws import AuditExportResult
 
 
 class TenantAuthTests(unittest.TestCase):
@@ -92,6 +93,24 @@ class TenantAuthTests(unittest.TestCase):
         self.assertIn(b'value="unknown@example.test"', response.data)
         self.assertIn(b"Identifiants invalides.", response.data)
         self.assertNotIn(b"UNKNOWN@example.test", response.data)
+        with self.app.app_context():
+            unknown_attempt = AuditLog.query.filter_by(action="auth.login").one()
+            self.assertEqual(unknown_attempt.result, "failure")
+            self.assertIsNone(unknown_attempt.tenant_id)
+            self.assertIsNone(unknown_attempt.user_email)
+
+        self.client.post(
+            "/login",
+            data={"email": "compliance@example.test", "password": "wrong-password"},
+        )
+        with self.app.app_context():
+            known_attempt = AuditLog.query.filter_by(
+                action="auth.login",
+                tenant_id="tenant-a",
+            ).one()
+            self.assertEqual(known_attempt.result, "failure")
+            self.assertEqual(known_attempt.user_email, "compliance@example.test")
+            self.assertNotIn("wrong-password", known_attempt.action)
 
     def test_login_redirect_accepts_only_local_relative_targets(self):
         safe_response = self.client.post(
@@ -305,7 +324,8 @@ class TenantAuthTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 201)
 
-        with patch("app.routes_rgpd.upload_audit_report_to_s3", return_value=(False, "unavailable")):
+        failed_export = AuditExportResult(False, "local-copy.json", None, "AccessDenied")
+        with patch("app.routes_rgpd.upload_audit_report_to_s3", return_value=failed_export):
             response = self.client.post(
                 "/rgpd/audit",
                 json={
@@ -317,14 +337,19 @@ class TenantAuthTests(unittest.TestCase):
             )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get_json()["tenant_id"], "tenant-a")
+        self.assertEqual(response.get_json()["status"], "partial")
+        self.assertFalse(response.get_json()["s3_storage"]["uploaded_to_aws"])
+        self.assertEqual(response.get_json()["s3_storage"]["error"], "AccessDenied")
 
-        with patch("app.routes_policies.upload_audit_report_to_s3", return_value=(False, "unavailable")):
+        with patch("app.routes_policies.upload_audit_report_to_s3", return_value=failed_export):
             response = self.client.post(
                 "/policies/generate",
                 json={"tenant_id": "tenant-b", "user_email": "forged@example.test"},
             )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get_json()["tenant_id"], "tenant-a")
+        self.assertEqual(response.get_json()["status"], "partial")
+        self.assertFalse(response.get_json()["s3_storage"]["uploaded_to_aws"])
 
         self.assertEqual(
             self.client.post("/controls", json={"name": "Bad", "status": []}).status_code,
@@ -354,11 +379,23 @@ class TenantAuthTests(unittest.TestCase):
             )
             self.assertEqual(
                 AuditLog.query.filter_by(tenant_id="tenant-a", user_email="compliance@example.test").count(),
-                2,
+                7,
             )
             self.assertEqual(
                 AuditLog.query.filter_by(user_email="forged@example.test").count(),
                 0,
+            )
+            self.assertEqual(
+                AuditLog.query.filter_by(action="s3.export", result="failure").count(),
+                2,
+            )
+            self.assertEqual(
+                AuditLog.query.filter_by(action="iso27001.control.create", result="success").count(),
+                2,
+            )
+            self.assertEqual(
+                AuditLog.query.filter_by(action="security_policy.generate", result="success").count(),
+                1,
             )
 
     def test_auditor_is_read_only(self):

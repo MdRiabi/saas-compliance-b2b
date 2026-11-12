@@ -8,6 +8,7 @@ from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+
 load_dotenv()
 
 db = SQLAlchemy()
@@ -35,6 +36,11 @@ def create_app(config=None):
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
         WTF_CSRF_TIME_LIMIT=3600,
+        S3_BUCKET_NAME=os.getenv("S3_BUCKET_NAME"),
+        AWS_REGION=os.getenv("AWS_REGION", "us-east-1"),
+        S3_SERVER_SIDE_ENCRYPTION=os.getenv("S3_SERVER_SIDE_ENCRYPTION", "AES256"),
+        S3_KMS_KEY_ID=os.getenv("S3_KMS_KEY_ID"),
+        AUDIT_EXPORT_DIR=os.getenv("AUDIT_EXPORT_DIR"),
     )
     if config:
         app.config.update(config)
@@ -55,6 +61,8 @@ def create_app(config=None):
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        from app.audit import add_audit_event
+
         if current_user.is_authenticated:
             return redirect(url_for("index"))
         if request.method == "POST":
@@ -64,8 +72,23 @@ def create_app(config=None):
             password = request.form.get("password", "")
             user = User.query.filter_by(email=email).first() if email else None
             if user and password and user.check_password(password):
+                add_audit_event(
+                    tenant_id=user.tenant_id,
+                    actor_email=user.email,
+                    action="auth.login",
+                    resource_type="authentication",
+                )
+                db.session.commit()
                 login_user(user)
                 return redirect(_safe_login_redirect(request.args.get("next")) or url_for("index"))
+            add_audit_event(
+                tenant_id=user.tenant_id if user else None,
+                actor_email=user.email if user else None,
+                action="auth.login",
+                result="failure",
+                resource_type="authentication",
+            )
+            db.session.commit()
             flash("Identifiants invalides.", "error")
         return render_template(
             "login.html",
@@ -74,7 +97,16 @@ def create_app(config=None):
 
     @app.route("/logout", methods=["POST"])
     def logout():
+        from app.audit import add_audit_event
+
         if current_user.is_authenticated:
+            add_audit_event(
+                tenant_id=current_user.tenant_id,
+                actor_email=current_user.email,
+                action="auth.logout",
+                resource_type="authentication",
+            )
+            db.session.commit()
             logout_user()
         return redirect(url_for("login"))
 
@@ -108,6 +140,68 @@ def create_app(config=None):
         db.session.add(user)
         db.session.commit()
         click.echo(f"Utilisateur créé pour le tenant {tenant_id}.")
+
+    @app.cli.command("export-audit-logs")
+    def export_audit_logs_command():
+        """Export pending tenant audit events to local archives and S3."""
+        from app.audit_export import export_pending_audit_logs
+
+        outcomes = export_pending_audit_logs()
+        if not outcomes:
+            click.echo("Aucun nouvel événement d’audit à exporter.")
+            return
+        failures = []
+        for outcome in outcomes:
+            tenant_label = outcome["tenant_id"] or "unassigned"
+            if outcome["uploaded"]:
+                click.echo(
+                    f"{tenant_label}: {outcome['record_count']} événements exportés "
+                    f"vers {outcome['s3_uri']} (copie locale: {outcome['local_path']})."
+                )
+            else:
+                message = outcome["error"] or "Échec d’export non détaillé."
+                failures.append(f"{tenant_label}: {message}")
+                click.echo(
+                    f"{tenant_label}: échec de l’export ({message}); "
+                    f"copie locale: {outcome['local_path'] or 'indisponible'}."
+                )
+        if failures:
+            raise click.ClickException(
+                f"{len(failures)} export(s) S3 ont échoué; consultez les messages ci-dessus."
+            )
+
+    @app.cli.command("verify-audit-s3")
+    def verify_audit_s3_command():
+        """Verify public-access blocking and default encryption on the audit bucket."""
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        from app.utils_aws import verify_s3_bucket_security
+
+        try:
+            checks = verify_s3_bucket_security()
+        except ValueError as error:
+            raise click.ClickException(str(error)) from error
+        except ClientError as error:
+            code = error.response.get("Error", {}).get("Code", "S3ClientError")
+            raise click.ClickException(
+                f"Impossible de vérifier le bucket S3 ({code}); vérifiez l’accès et les permissions."
+            ) from error
+        except BotoCoreError as error:
+            raise click.ClickException(
+                f"Impossible de contacter S3 ({type(error).__name__})."
+            ) from error
+
+        click.echo(f"Bucket: {checks['bucket']}")
+        click.echo(f"Blocage de l’accès public: {checks['public_access_block_enabled']}")
+        click.echo(f"Politique publique: {checks['bucket_policy_is_public']}")
+        click.echo(
+            "Chiffrement par défaut: "
+            f"{checks['default_encryption_enabled']} ({', '.join(checks['encryption_algorithms']) or 'aucun'})"
+        )
+        if not checks["secure"]:
+            raise click.ClickException(
+                "La vérification a échoué: activez le blocage public complet et un chiffrement par défaut."
+            )
 
     from app.routes_rgpd import rgpd_bp
     from app.routes_iso import iso_bp

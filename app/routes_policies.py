@@ -1,11 +1,12 @@
 import re
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user
 
 from app import db
 from app.auth import WRITE_ROLES, roles_required
-from app.models import AuditLog
+from app.audit import add_audit_event
 from app.utils_aws import upload_audit_report_to_s3
 
 policies_bp = Blueprint("policies", __name__, url_prefix="/policies")
@@ -51,25 +52,38 @@ def generate_security_policy():
         "tenant_id": tenant_id,
         "policy_type": policy_type,
         "policy_details": selected_policy,
-        "generated_at": "timestamp",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    success, s3_path = upload_audit_report_to_s3(
+    export_result = upload_audit_report_to_s3(
         tenant_id, f"policy_{policy_type}", report_payload
     )
-    db.session.add(
-        AuditLog(
-            tenant_id=tenant_id,
-            user_email=current_user.email,
-            action=f"Génération politique de sécurité: {policy_type}",
-        )
+    add_audit_event(
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        action="security_policy.generate",
+        resource_type="security_policy",
+        resource_id=policy_type,
+    )
+    add_audit_event(
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        action="s3.export",
+        result="success" if export_result.uploaded else "failure",
+        resource_type="security_policy",
+        resource_id=policy_type,
     )
     db.session.commit()
 
     return jsonify(
         {
-            "status": "success",
+            "status": "success" if export_result.uploaded else "partial",
             "tenant_id": tenant_id,
             "policy": selected_policy,
-            "s3_storage": {"uploaded_to_aws": success, "path": s3_path},
+            "s3_storage": {
+                "uploaded_to_aws": export_result.uploaded,
+                "path": export_result.s3_uri,
+                "local_copy": export_result.local_path,
+                "error": export_result.error,
+            },
         }
     ), 201
