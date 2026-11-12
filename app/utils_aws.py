@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 from urllib.parse import quote
 
 import boto3
@@ -41,9 +42,9 @@ _MAX_UPLOAD_ATTEMPTS = 3
 @dataclass(frozen=True)
 class AuditExportResult:
     uploaded: bool
-    local_path: str | None
-    s3_uri: str | None
-    error: str | None = None
+    local_path: Optional[str]
+    s3_uri: Optional[str]
+    error: Optional[str] = None
 
 
 def _safe_path_component(value):
