@@ -1,6 +1,6 @@
 import re
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user
 
 from app import db
@@ -9,6 +9,15 @@ from app.models import AuditLog
 from app.utils_aws import upload_audit_report_to_s3
 
 policies_bp = Blueprint("policies", __name__, url_prefix="/policies")
+
+
+@policies_bp.route("/", methods=["GET"])
+@roles_required(*WRITE_ROLES)
+def policy_dashboard():
+    return render_template(
+        "policies_dashboard.html",
+        tenant_id=current_user.tenant_id,
+    )
 
 
 @policies_bp.route("/generate", methods=["POST"])

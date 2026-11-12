@@ -65,7 +65,11 @@
                         <a class="nav-link active bg-primary text-white rounded" href="{{ url_for('iso.iso_dashboard') }}" aria-current="page">02 · Checklist ISO 27001</a>
                     </li>
                     <li class="nav-item">
-                        <span class="nav-link text-white-50" aria-disabled="true">03 · Politiques</span>
+                        {% if can_write %}
+                            <a class="nav-link text-white-50" href="{{ url_for('policies.policy_dashboard') }}">03 · Politiques</a>
+                        {% else %}
+                            <span class="nav-link text-white-50" aria-disabled="true">03 · Politiques</span>
+                        {% endif %}
                     </li>
                 </ul>
             </nav>

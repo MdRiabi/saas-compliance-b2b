@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politiques de sécurité · SecureFrame</title>
+<style>
+:root{
+  --bg:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#64748b;
+  --primary:#134e4a; --accent:#0d9488; --accent-soft:#f0fdfa;
+  --ok:#16a34a; --ok-soft:#f0fdf4; --warn:#d97706; --warn-soft:#fffbeb;
+  --high:#ea580c; --high-soft:#fff7ed; --crit:#dc2626; --crit-soft:#fef2f2;
+  --soc:#7c3aed; --soc-soft:#f5f3ff; --nis:#b45309; --nis-soft:#fffbeb;
+  --iso:#0f766e; --iso-soft:#f0fdfa;
+  --radius:12px; --shadow:0 1px 3px rgba(15,23,42,.08),0 4px 14px rgba(15,23,42,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14.5px;line-height:1.55}
+#app{display:grid;grid-template-columns:270px 1fr;min-height:100vh}
+
+/* ---------- Sidebar ---------- */
+#sidebar{background:var(--primary);color:#cbd5e1;padding:22px 18px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{color:#fff}
+.brand .b1{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8fd0c6;font-weight:600}
+.brand .b2{font-size:18px;font-weight:700;color:#fff;margin-top:2px;line-height:1.25}
+.brand .b3{font-size:11.5px;color:#7cbcb0;margin-top:4px}
+.stepper{list-style:none;display:flex;flex-direction:column;gap:4px}
+.stepper li{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:9px;cursor:pointer;color:#b7cdc9;font-size:13.5px;transition:background .15s}
+.stepper li:hover{background:rgba(255,255,255,.07)}
+.stepper li .num{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid #4d8f87;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#9fc9c2}
+.stepper li.active{background:rgba(13,148,136,.32);color:#fff}
+.stepper li.active .num{background:var(--accent);border-color:var(--accent);color:#fff}
+.stepper li.done .num{background:#16a34a;border-color:#16a34a;color:#fff}
+.stepper li .lbl b{display:block;font-weight:600}
+.stepper li .lbl small{font-size:11px;color:#7cbcb0}
+.side-score{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px}
+.side-score .t{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#8fd0c6;font-weight:600}
+.side-score .v{font-size:22px;font-weight:700;color:#fff;margin-top:2px}
+.side-score .bar{height:5px;background:rgba(255,255,255,.15);border-radius:3px;margin-top:8px;overflow:hidden}
+.side-score .bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
+.side-actions{display:flex;flex-direction:column;gap:8px}
+.side-actions button{width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#dbe7f3;font-size:13px;cursor:pointer;font-weight:500}
+.side-actions button:hover{background:rgba(255,255,255,.08)}
+.side-actions button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.side-foot{margin-top:auto;font-size:11px;color:#6fa79e;line-height:1.5}
+
+/* ---------- Main ---------- */
+#main{padding:30px 38px 60px;max-width:1180px}
+.workspace-bar{display:flex;justify-content:flex-end;margin-bottom:20px}
+.workspace-tenant{font-size:12px;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:99px;padding:6px 12px}
+.screen{display:none;animation:fade .25s}
+.screen.visible{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.screen-head{margin-bottom:22px}
+.screen-head .kicker{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.screen-head h1{font-size:23px;margin:4px 0 4px;font-weight:700}
+.screen-head p{color:var(--muted);max-width:760px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px}
+.card h2{font-size:16px;margin-bottom:4px;font-weight:700}
+.card .sub{font-size:13px;color:var(--muted);margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:#334155}
+label.f small{font-weight:400;color:var(--muted)}
+input[type=text],input[type=date],select,textarea{font:inherit;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:var(--text);width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid #99f6e4;border-color:var(--accent)}
+textarea{resize:vertical;min-height:44px}
+.btn{font:inherit;padding:10px 18px;border-radius:9px;border:1px solid transparent;cursor:pointer;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.primary:hover{background:#0f766e}
+.btn.ghost{background:#fff;border-color:#cbd5e1;color:#334155}
+.btn.ghost:hover{background:#f8fafc}
+.btn.small{padding:6px 12px;font-size:12.5px;border-radius:7px}
+.btn.danger{background:#fff;border-color:#fecaca;color:var(--crit)}
+.btn.danger:hover{background:var(--crit-soft)}
+.navbar{display:flex;justify-content:space-between;gap:12px;margin-top:26px}
+.hint{font-size:12.5px;color:var(--muted);background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:9px 12px;margin-top:14px}
+
+/* ---------- Accueil ---------- */
+.hero{background:linear-gradient(135deg,#134e4a 0%,#0d9488 120%);border-radius:16px;color:#fff;padding:34px 36px;margin-bottom:22px}
+.hero h1{font-size:26px;font-weight:800}
+.hero p{color:#c9ece7;margin-top:8px;max-width:660px}
+.hero .tags{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.hero .tag{font-size:11.5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:4px 11px;border-radius:99px}
+.choice{border:1.5px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;background:#fff;transition:border .15s, box-shadow .15s;display:block}
+.choice:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.choice .ic{font-size:24px}
+.choice h3{font-size:15.5px;margin:8px 0 5px}
+.choice p{font-size:13px;color:var(--muted)}
+.choice.disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.motor{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.motor .m{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px}
+.motor .m b{display:block;font-size:13.5px;margin-bottom:4px}
+.motor .m span{font-size:12.5px;color:var(--muted)}
+.motor .m .ic{font-size:18px}
+
+/* ---------- Badges & chips ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.high{background:var(--high-soft);color:var(--high)}
+.badge.crit{background:var(--crit-soft);color:var(--crit)}
+.badge.info{background:var(--accent-soft);color:var(--accent)}
+.badge.gray{background:#f1f5f9;color:var(--muted)}
+.badge.soc{background:var(--soc-soft);color:var(--soc)}
+.badge.nis{background:var(--nis-soft);color:var(--nis)}
+.badge.iso{background:var(--iso-soft);color:var(--iso)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font-size:12px;padding:5px 11px;border-radius:99px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;user-select:none}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:9px 10px;border-bottom:2px solid var(--border)}
+td{padding:11px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.tbl-wrap{overflow-x:auto}
+.empty{padding:26px;text-align:center;color:var(--muted);font-size:13.5px;background:#fafcfe;border:1px dashed #cbd5e1;border-radius:10px}
+
+/* ---------- Catalogue ---------- */
+.pol-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pol-card{border:1.5px solid var(--border);border-radius:12px;padding:16px;background:#fff;display:flex;flex-direction:column;gap:8px;position:relative;transition:border .15s, box-shadow .15s}
+.pol-card:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.pol-card .pol-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pol-card .pol-code{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:var(--accent);background:var(--accent-soft);padding:2px 8px;border-radius:6px}
+.pol-card h3{font-size:14px;line-height:1.35}
+.pol-card p{font-size:12.5px;color:var(--muted);flex:1}
+.pol-card .pol-refs{display:flex;gap:5px;flex-wrap:wrap}
+.pol-card .pol-sel{display:flex;align-items:center;gap:8px;margin-top:4px}
+.pol-card .pol-sel label{font-size:12.5px;font-weight:600;color:#334155;display:flex;align-items:center;gap:7px;cursor:pointer}
+.pol-card .pol-sel input{width:17px;height:17px;accent-color:var(--accent)}
+.pol-card.selected{border-color:var(--accent);background:linear-gradient(180deg,#f0fdfa 0%,#fff 30%)}
+.pol-card .pol-reco{position:absolute;top:12px;right:12px}
+select.mini{padding:6px 9px;font-size:12.5px;width:auto}
+
+/* ---------- Prévisualisation papier ---------- */
+.paper{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:36px 44px;box-shadow:0 2px 18px rgba(15,23,42,.10);font-size:13.5px;line-height:1.65;color:#1e293b;max-width:860px;margin:0 auto}
+.paper .p-kicker{text-align:center;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700}
+.paper h1{font-size:21px;text-align:center;margin:6px 0 2px;color:#0f172a}
+.paper .p-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:20px}
+.cartouche{border:1.5px solid #0f172a;border-radius:6px;overflow:hidden;margin-bottom:22px}
+.cartouche table{font-size:12px}
+.cartouche th{background:#f1f5f9;padding:7px 10px;border-bottom:1px solid #cbd5e1;text-transform:none;letter-spacing:0;font-size:11px;color:#475569;width:170px}
+.cartouche td{padding:7px 10px;border-bottom:1px solid #e2e8f0}
+.cartouche tr:last-child td,.cartouche tr:last-child th{border-bottom:none}
+.paper h2{font-size:15px;margin:26px 0 8px;color:var(--primary);border-bottom:2px solid var(--accent);padding-bottom:4px}
+.paper h3{font-size:13.5px;margin:16px 0 6px;color:#334155}
+.paper p{margin:7px 0;text-align:justify}
+.paper ul,.paper ol{margin:7px 0 7px 22px}
+.paper li{margin:4px 0}
+.paper .var-hl{background:#fef9c3;border-bottom:2px dotted #ca8a04;padding:0 3px;border-radius:3px;font-weight:600}
+.paper .ref-foot{margin-top:26px;padding-top:12px;border-top:1px solid #cbd5e1;font-size:11px;color:var(--muted)}
+.hist-table td,.hist-table th{padding:6px 10px;font-size:12px}
+.sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:26px}
+.sign-box{border:1px dashed #94a3b8;border-radius:6px;padding:12px 14px;font-size:12px;color:#334155}
+.sign-box .sig-line{margin-top:34px;border-top:1.5px solid #334155;padding-top:4px;font-size:11px;color:var(--muted)}
+.paper-controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:18px 0}
+.paper-nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.paper-nav .pn-lbl{font-size:13px;font-weight:700}
+.paper-nav select{width:auto}
+.doc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.doc-tab{font-size:12.5px;padding:7px 14px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;cursor:pointer;font-weight:600;color:var(--muted)}
+.doc-tab.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+/* ---------- Couverture ---------- */
+.cov-row{display:grid;grid-template-columns:300px 1fr 64px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.cov-row:last-child{border-bottom:none}
+.cov-row .nm{font-size:13px;font-weight:600}
+.cov-row .nm small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.cov-row .tk{height:9px;background:#eef2f7;border-radius:5px;overflow:hidden}
+.cov-row .tk i{display:block;height:100%;border-radius:5px;transition:width .4s}
+.gap-item{border:1px solid var(--border);border-left:4px solid var(--warn);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:#fff}
+.gap-item .g-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.gap-item h4{font-size:13.5px}
+.gap-item p{font-size:12.5px;color:#334155;margin-top:6px}
+
+/* ---------- Référentiel documentaire ---------- */
+.doc-tree{font-size:13.5px}
+.doc-tree .lvl1{font-weight:700;margin:12px 0 4px;color:var(--primary)}
+.doc-tree .lvl2{margin:3px 0 3px 18px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.doc-tree .lvl2 .dc{font-size:11px;font-weight:800;color:var(--accent);background:var(--accent-soft);padding:1px 7px;border-radius:5px;white-space:nowrap}
+.doc-tree .lvl2 .st{font-size:11px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:6px}
+.stat{border-radius:10px;padding:13px 15px;border:1px solid var(--border)}
+.stat b{font-size:22px;font-weight:800;display:block}
+.stat span{font-size:12px;color:var(--muted)}
+
+/* ---------- Toast ---------- */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#0f172a;color:#fff;padding:11px 20px;border-radius:10px;font-size:13.5px;font-weight:600;opacity:0;transition:all .3s;z-index:99;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Print ---------- */
+#print-pack{display:none}
+@media print{
+  body{background:#fff}
+  #app,#toast{display:none!important}
+  #print-pack{display:block}
+  #print-pack .paper{box-shadow:none;border:none;padding:10mm 6mm;max-width:none;border-radius:0}
+  #print-pack .paper + .paper{page-break-before:always}
+  #print-pack .var-hl{background:none;border-bottom:none;font-weight:inherit}
+  @page{margin:14mm}
+}
+@media (max-width:960px){
+  #app{grid-template-columns:1fr}
+  #sidebar{position:static;height:auto}
+  .grid2,.grid3,.motor,.pol-grid,.stat-grid,.sign-grid{grid-template-columns:1fr}
+  .cov-row{grid-template-columns:1fr}
+  .paper{padding:22px 18px}
+}
+</style>
+</head>
+<body data-tenant-id="{{ tenant_id }}">
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="b1">Plateforme B2B</div>
+      <div class="b2">RGPD &amp; ISO 27001</div>
+      <div class="b3">Module 3 — Politiques de sécurité prêtes à l'emploi</div>
+    </div>
+    <nav aria-label="Navigation principale" class="side-actions">
+      <a class="btn ghost small" href="{{ url_for('rgpd.audit_page') }}">01 · Audit RGPD</a>
+      <a class="btn ghost small" href="{{ url_for('iso.iso_dashboard') }}">02 · Checklist ISO 27001</a>
+      <a class="btn primary small" href="{{ url_for('policies.policy_dashboard') }}" aria-current="page">03 · Politiques</a>
+    </nav>
+    <ol class="stepper" id="stepper"></ol>
+    <div class="side-score" id="sideScore">
+      <div class="t">Pack en préparation</div>
+      <div class="v" id="sideScoreVal">—</div>
+      <div class="bar"><i id="sideScoreBar" style="width:0%"></i></div>
+      <div class="t" style="margin-top:7px;font-weight:400;letter-spacing:0;text-transform:none" id="sideScoreLbl">Aucune politique sélectionnée</div>
+    </div>
+    <div class="side-actions">
+      <button class="primary" id="btnDemo">⚡ Charger le scénario réel</button>
+      <button id="btnReset">↺ Réinitialiser</button>
+    </div>
+    <div class="side-foot">Brouillons enregistrés dans ce navigateur pour le tenant connecté. Ces modèles doivent être adaptés et approuvés par votre organisation; ils ne constituent ni une certification ni une preuve de conformité.</div>
+    <form method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn ghost small" type="submit">Se déconnecter</button>
+    </form>
+  </aside>
+
+  <main id="main">
+    <div class="workspace-bar"><span class="workspace-tenant">Tenant · {{ tenant_id }}</span></div>
+    <!-- ═══ Écran 0 : Accueil ═══ -->
+    <section class="screen" id="screen-0">
+      <div class="hero">
+        <h1>Politiques de sécurité prêtes à l'emploi</h1>
+        <p>Préparez des brouillons de politiques à adapter au contexte de votre entreprise et à faire approuver avant toute diffusion. Ces modèles ne constituent pas une preuve de conformité.</p>
+        <div class="tags">
+          <span class="tag">14 politiques pré-rédigées</span>
+          <span class="tag">Personnalisation automatique</span>
+          <span class="tag">Couverture ISO 27001 · NIS 2 · SOC 2</span>
+          <span class="tag">Export pack complet</span>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="choice" id="startNew">
+          <div class="ic">📝</div>
+          <h3>Créer un pack de zéro</h3>
+          <p>Entreprise, variables, sélection des politiques, prévisualisation et export.</p>
+        </div>
+        <div class="choice" id="startDemo">
+          <div class="ic">🏥</div>
+          <h3>Scénario réel : MediTrack</h3>
+          <p>Le pack complet de l'éditeur SaaS santé — 14 politiques personnalisées, couverture multi-référentiels et croisement avec les constats du Module 2.</p>
+        </div>
+        <div class="choice disabled" id="startResume">
+          <div class="ic">📂</div>
+          <h3>Reprendre le pack en cours</h3>
+          <p>Sauvegarde locale détectée.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Ce que produit le générateur</h2>
+        <p class="sub">Chaque politique est un brouillon autonome à adapter, relire et faire approuver avant diffusion. Les valeurs issues du formulaire sont injectées automatiquement et <span style="background:#fef9c3;border-bottom:2px dotted #ca8a04;padding:0 3px;border-radius:3px;font-weight:600">surlignées</span> dans la prévisualisation pour relecture.</p>
+        <div class="motor">
+          <div class="m"><span class="ic">🧩</span><b>1 · Personnalisation</b><span>16 variables d'entreprise (nom, RSSI, outils, délais, seuils…) injectées dans les 14 politiques — une seule saisie, zéro recherche-remplacement.</span></div>
+          <div class="m"><span class="ic">📐</span><b>2 · Structure documentaire</b><span>Cartouche d'identification, historique de versions et champs de validation à compléter selon les règles documentaires de votre organisation.</span></div>
+          <div class="m"><span class="ic">🔗</span><b>3 · Traçabilité référentiels</b><span>Chaque politique affiche ses exigences couvertes (ISO A.x, NIS 2 art. 21.2, SOC 2 CC) et les constats Module 2 qu'elle vient traiter.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 1 : Entreprise & variables ═══ -->
+    <section class="screen" id="screen-1">
+      <div class="screen-head">
+        <div class="kicker">Étape 1 / 4</div>
+        <h1>Entreprise &amp; variables de personnalisation</h1>
+        <p>Ces valeurs sont injectées dans toutes les politiques sélectionnées (dates, outils, délais, contacts). Le surlignage jaune dans la prévisualisation vous permet de relire chaque personnalisation avant diffusion.</p>
+      </div>
+      <div class="card">
+        <h2>Identification</h2>
+        <p class="sub">Champs repris dans le cartouche de chaque document.</p>
+        <div class="grid2">
+          <label class="f">Raison sociale *</label>
+          <label class="f">Référent du pack <small>auteur des documents</small></label>
+          <input type="text" id="v_company" placeholder="Ex. MediTrack SAS">
+          <input type="text" id="v_author" placeholder="Ex. Marc Ferrand, CTO">
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Date d'approbation</label>
+          <label class="f">Prochaine revue <small>fréquence annuelle par défaut</small></label>
+          <input type="date" id="v_date">
+          <input type="date" id="v_review">
+        </div>
+      </div>
+      <div class="card">
+        <h2>Variables applicables au pack</h2>
+        <p class="sub">Outils et paramètres cités dans les politiques. Les valeurs pré-remplies sont des exemples réalistes — adaptez-les à votre SI.</p>
+        <div class="grid2">
+          <label class="f">SSO / fournisseur d'identité <small>cité dans accès, MFA, télétravail</small></label>
+          <label class="f">Solution MFA</label>
+          <input type="text" id="v_sso" placeholder="Ex. Google Workspace + SSO">
+          <input type="text" id="v_mfa" placeholder="Ex. authenticateur TOTP + clé FIDO2">
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Messagerie / outil de tickets incidents <small>cité dans incidents, journalisation</small></label>
+          <label class="f">Répertoire des actifs / inventaire</label>
+          <input type="text" id="v_ittool" placeholder="Ex. GLPI / Jira Service Management">
+          <input type="text" id="v_cmdb" placeholder="Ex. registre CMDB (page « Actifs » du Module 2)">
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Fournisseur cloud principal</label>
+          <label class="f">Périmètre de classification <small>nombre de niveaux</small></label>
+          <input type="text" id="v_cloud" placeholder="Ex. Microsoft Azure (région France Central)">
+          <select id="v_classlevels">
+            <option value="2">2 niveaux (Interne / Confidentiel) — PME &lt; 20 salariés</option>
+            <option value="3" selected>3 niveaux (Interne / Confidentiel / Restreint) — recommandé</option>
+            <option value="4">4 niveaux (Public / Interne / Confidentiel / Restreint)</option>
+          </select>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Délai de correction des vulnérabilités critiques <small>cité dans vulnérabilités + NIS 2</small></label>
+          <label class="f">Rétention des journaux <small>exigée ≥ 6 mois, recommandée 12</small></label>
+          <select id="v_critdelay">
+            <option value="24">24 heures</option>
+            <option value="48">48 heures</option>
+            <option value="72" selected>72 heures</option>
+            <option value="168">1 semaine</option>
+          </select>
+          <select id="v_logretention">
+            <option value="6">6 mois (minimum acceptable)</option>
+            <option value="12" selected>12 mois (recommandé)</option>
+            <option value="24">24 mois (secteur sensible)</option>
+          </select>
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Contact incidents sécurité <small>boîte mail dédiée</small></label>
+          <label class="f">Astreinte / canal hors heures <small>si applicable</small></label>
+          <input type="text" id="v_secmail" placeholder="Ex. securite@meditrack.fr">
+          <input type="text" id="v_oncall" placeholder="Ex. astreinte téléphonique 7j/7 (numéro interne 4999)">
+        </div>
+        <div class="grid2" style="margin-top:14px">
+          <label class="f">Sauvegarde — rétention <small>cité dans continuité</small></label>
+          <label class="f">Test de restauration — fréquence</label>
+          <select id="v_bkretention">
+            <option value="30">30 jours</option>
+            <option value="35" selected>35 jours</option>
+            <option value="90">90 jours</option>
+          </select>
+          <select id="v_bktest">
+            <option value="T">Trimestrielle</option>
+            <option value="S" selected>Semestrielle</option>
+            <option value="A">Annuelle</option>
+          </select>
+        </div>
+      </div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Retour à l'accueil</button>
+        <button class="btn primary" data-nav="next">Étape 2 : Sélection des politiques →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 2 : Catalogue ═══ -->
+    <section class="screen" id="screen-2">
+      <div class="screen-head">
+        <div class="kicker">Étape 2 / 4</div>
+        <h1>Catalogue des politiques</h1>
+        <p>14 politiques pré-rédigées, chacune reliée à ses exigences ISO 27001, NIS 2 et SOC 2. La sélection recommandée est calculée à partir du profil (évaluation ISO du Module 2, référentiels actifs, actifs cloud et applications internes).</p>
+      </div>
+      <div class="card">
+        <div class="chips" style="margin-bottom:14px">
+          <span class="chip" id="chipAll">Tout sélectionner</span>
+          <span class="chip" id="chipNone">Tout désélectionner</span>
+          <span class="chip" id="chipReco">Sélection recommandée ⚡</span>
+        </div>
+        <div id="polGrid" class="pol-grid"></div>
+        <div class="hint">Chaque politique sélectionnée est numérotée automatiquement (POL-SEC-001 à POL-SEC-014) dans le référentiel documentaire — les codes ISO 27001 et NIS 2 cités dans chaque document restent fixes.</div>
+      </div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 1 : Variables</button>
+        <button class="btn primary" data-nav="next">Étape 3 : Prévisualisation →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 3 : Prévisualisation ═══ -->
+    <section class="screen" id="screen-3">
+      <div class="screen-head">
+        <div class="kicker">Étape 3 / 4</div>
+        <h1>Prévisualisation &amp; personnalisation fine</h1>
+        <p>Relisez chaque politique au format final. Les valeurs issues du formulaire sont surlignées — modifiez-les directement ici si besoin (le changement s'applique au document en cours uniquement).</p>
+      </div>
+      <div class="card">
+        <div class="paper-nav">
+          <div class="pn-lbl" id="paperCount"></div>
+          <select id="docSelect" style="width:auto;min-width:280px"></select>
+          <div style="display:flex;gap:8px">
+            <button class="btn small ghost" id="docPrev">← Précédent</button>
+            <button class="btn small ghost" id="docNext">Suivant →</button>
+          </div>
+        </div>
+        <div class="paper" id="paperView"></div>
+        <div class="paper-controls">
+          <button class="btn ghost small" id="btnEditVars">✎ Modifier les variables du pack</button>
+          <button class="btn primary small" id="btnPrintOne">🖨️ Imprimer cette politique</button>
+        </div>
+      </div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 2 : Catalogue</button>
+        <button class="btn primary" data-nav="next">Étape 4 : Couverture &amp; export →</button>
+      </div>
+    </section>
+
+    <!-- ═══ Écran 4 : Couverture & export ═══ -->
+    <section class="screen" id="screen-4">
+      <div class="screen-head">
+        <div class="kicker">Étape 4 / 4</div>
+        <h1>Couverture référentiels &amp; export du pack</h1>
+        <p>Vérifiez que votre sélection couvre les exigences de vos référentiels (ISO, NIS 2, SOC 2) et les constats de l'évaluation Module 2 avant de diffuser le pack.</p>
+      </div>
+      <div id="coverage"></div>
+      <div class="navbar">
+        <button class="btn ghost" data-nav="prev">← Étape 3 : Prévisualisation</button>
+        <button class="btn primary" id="btnBackHome">Terminer le pack ✓</button>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+<div id="print-pack"></div>
+{% raw %}<script>
+/* ═══════════════ CONTENU DES 12 POLITIQUES (ISO/IEC 27001:2022 · NIS 2 art. 21 · SOC 2 TSC) ═══════════════ */
+/* Variables {{...}} interpolées depuis le formulaire. Structure de chaque politique :
+   code, titre, résumé, refs (ISO/SOC2/NIS2), module2 (constats traités), reco (inclusion recommandée), sections[] */
+
+/* Lignes du tableau de classification — adaptées au nombre de niveaux choisi (variable {{classlevels}}) */
+function classRows(n){
+  const R4 = [['Public','Site web, plaquettes','Aucune restriction de diffusion'],
+    ['Interne','Organigrammes, documentation générale','Diffusion limitée aux collaborateurs'],
+    ['Confidentiel','Contrats, données clients, code source','Accès par rôle ; partage externe encadré'],
+    ['Restreint','Données de santé, secrets, identités','Accès nominatif approuvé ; chiffrement et traçabilité systématiques']];
+  const R3 = R4.slice(1);
+  const R2 = [['Interne','Documentation générale, informations non sensibles','Diffusion limitée aux collaborateurs'],
+    ['Confidentiel / Restreint','Données clients et de santé, secrets, code source','Accès nominatif approuvé ; chiffrement et traçabilité systématiques']];
+  return n==4?R4 : n==2?R2 : R3;
+}
+
+const POLICIES = [
+{
+  id:'pssi', code:'POL-SEC-001', icon:'🏛️', title:'Politique de sécurité des systèmes d\'information (PSSI)',
+  desc:'Document fondateur : engagements de la direction, périmètre, principes et organisation de la sécurité.',
+  iso:['Clause 5.2','A.5.1'], soc:['CC1','CC2'], nis:['a'], module2:['ctx1','ctx2','ctx4'], reco:'always',
+  summary:'La PSSI définit l\'engagement de la direction, le périmètre du SMSI et les grands principes encadrant l\'usage du SI. Elle est le document mère auquel toutes les autres politiques renvoient.',
+  sections:[
+    {h:'1. Objet', p:'La présente politique formalise l\'engagement de {{company}} en matière de sécurité des systèmes d\'information (SSI). Elle fixe les principes généraux applicables à l\'ensemble des collaborateurs, prestataires et utilisateurs des systèmes d\'information de l\'entreprise, et sert de cadre à l\'ensemble des politiques et procédures opérationnelles qui en découlent.'},
+    {h:'2. Périmètre', p:'Cette politique s\'applique à l\'ensemble des systèmes d\'information de {{company}}, y compris les applications développées en interne, l\'infrastructure hébergée chez {{cloud}}, les postes de travail, les outils SaaS et les données traitées, où qu\'elles se trouvent. Les prestataires accédant à ces systèmes sont tenus de respecter des exigences équivalentes, contractualisées le cas échéant.'},
+    {h:'3. Engagements de la direction', p:'La direction de {{company}} s\'engage à : (i) protéger la confidentialité, l\'intégrité et la disponibilité des informations, en priorité les données de santé et données personnelles ; (ii) allouer les ressources nécessaires à la sécurité ; (iii) respecter les exigences légales et réglementaires applicables, dont le RGPD et la directive NIS 2 (UE) 2022/2555 ; (iv) améliorer continuellement le système de management de la sécurité de l\'information (SMSI) conformément à la norme ISO/IEC 27001:2022 ; (v) traiter la sécurité comme un prérequis de chaque projet et non comme une préoccupation ultérieure.'},
+    {h:'4. Principes directeurs', list:[
+      'Besoin d\'en connaître et moindre privilège : chaque accès est justifié par un rôle et limité au strict nécessaire.',
+      'Défense en profondeur : les mesures de sécurité sont réparties sur plusieurs couches (identités, réseau, applications, données).',
+      'Responsabilité individuelle : chaque collaborateur est responsable de l\'usage des ressources qui lui sont confiées.',
+      'Sécurité par défaut : les systèmes sont livrés et configurés avec des paramètres sécurisés ; les exceptions sont tracées et approuvées.',
+      'Résilience : l\'entreprise prépare la dégradation (sauvegardes, PCA/PRA) et non seulement la prévention.']},
+    {h:'5. Organisation et rôles', p:'Le référent sécurité ({{author}}) anime le SMSI, tient le registre des risques et rend compte à la direction au moins une fois par an. Les responsables d\'applications sont propriétaires de leurs actifs et des risques associés. Chaque collaborateur signale les événements suspects à l\'adresse {{secmail}}. Les incidents sont traités selon la procédure dédiée et supervisés par le comité de sécurité lorsqu\'ils dépassent le seuil de criticité défini.'},
+    {h:'6. Sanctions', p:'Le non-respect de la présente politique peut entraîner des sanctions disciplinaires conformément au règlement intérieur et à la législation applicable, sans préjudice des poursuites civiles ou pénales.'},
+    {h:'7. Révision', p:'Cette politique est revue au moins annuellement, ainsi qu\'à l\'occasion de tout changement significatif (évolution organisationnelle, incident majeur, évolution réglementaire). Version en vigueur : v1.0 du {{date}} — prochaine revue : {{review}}.'}
+  ]
+},
+{
+  id:'risques', code:'POL-SEC-002', icon:'📉', title:'Politique de management des risques de sécurité de l\'information',
+  desc:'Méthodologie d\'appréciation (échelles, critères d\'acceptation), registre des risques, plan de traitement et acceptation des risques résiduels.',
+  iso:['Clause 6.1','A.5.7'], soc:['CC3'], nis:['a'], module2:['rsk1','rsk2','rsk3'], reco:'always',
+  summary:'Définit comment {{company}} identifie, analyse et traite ses risques : méthodologie formalisée, registre vivant et plan de traitement avec propriétaires — exigences des clauses 6.1.2 et 6.1.3 de l\'ISO 27001.',
+  sections:[
+    {h:'1. Objet et méthodologie', p:'La direction de {{company}} a adopté une méthodologie d\'appréciation des risques adaptée à sa taille (approche inspirée d\'EBIOS Risk Manager). Elle définit : les échelles de vraisemblance et de gravité (faible / modérée / élevée / critique), les critères d\'acceptation des risques validés par la direction, et le rythme des campagnes d\'appréciation. Toute décision de sécurité significative s\'appuie sur cette méthodologie, pas sur l\'intuition.'},
+    {h:'2. Appréciation des risques', p:'Une campagne d\'appréciation est réalisée au moins annuellement, et à l\'occasion de tout changement majeur (nouveau service, nouvelle dépendance critique, refonte architecturale). Les scénarios de menace sont construits sur les actifs du périmètre (inventaire tenu à jour), en croisant sources de risque, vulnérabilités et impacts métier. Les résultats sont consignés dans le registre des risques : actif, scénario, niveau brut, mesures existantes, niveau résiduel.'},
+    {h:'3. Traitement des risques', p:'Pour chaque risque non accepté, une option de traitement est choisie (réduction, partage, évitement) et consignée dans le plan de traitement : mesure, propriétaire, échéance, statut. Le plan est revu mensuellement par le référent sécurité ; tout retard supérieur à 60 jours est escaladé à la direction avec proposition de mesure compensatoire. La déclaration d\'applicabilité (SOA) du SMSI est tenue à jour en cohérence avec les mesures retenues.'},
+    {h:'4. Acceptation des risques résiduels', p:'Un risque résiduel peut être formellement accepté par son propriétaire lorsque le niveau est conforme aux critères d\'acceptation, ou par la direction au-delà. L\'acceptation est écrite, datée, motivée et limitée dans le temps : chaque risque accepté est réévalué à chaque campagne annuelle.'}
+  ]
+},
+{
+  id:'classif', code:'POL-SEC-003', icon:'🏷️', title:'Politique de classification et de manipulation de l\'information',
+  desc:'Niveaux de classification, règles de manipulation, partage et destruction selon la sensibilité.',
+  iso:['A.5.9','A.5.10','A.5.11','A.5.12','A.5.13','A.7.14'], soc:['CC2','CC6'], nis:['i'], module2:['ops6'], reco:'always',
+  summary:'Définit les {{classlevels}} niveaux de classification de l\'information et les règles de manipulation associées : marquage, partage, transmission, stockage et destruction.',
+  sections:[
+    {h:'1. Objet et principes', p:'Toute information traitée par {{company}} est classée selon sa sensibilité afin d\'adapter les mesures de protection. La classification est déterminée par le propriétaire de l\'information au moment de sa création ; en cas de doute, le niveau le plus élevé s\'applique. Le classement est indiqué dans le nom du document, l\'objet du courriel ou les métadonnées de l\'application.'},
+    {h:'2. Niveaux de classification', table:{cols:['Niveau','Exemples','Exigences principales'],
+      rows: classRows(3)}}, /* recalculé dynamiquement selon {{classlevels}} à l'affichage */
+    {h:'3. Manipulation et partage', list:[
+      'Les documents de niveau Restreint ne sont jamais stockés sur des services personnels (drive personnel, messagerie privée) ni transmis vers une adresse personnelle.',
+      'Le partage externe de contenu Confidentiel ou Restreint exige l\'accord du propriétaire de l\'information et passe par des canaux chiffrés (liens sécurisés avec authentification, espaces de partage d\'entreprise).',
+      'Les données de santé ne sont partagées avec un tiers que sur fondement légal (sous-traitant RGPD, obligation légale) et après contractualisation.',
+      'L\'impression de documents Restreints est exceptionnelle et tracée ; les impressions non récupérées sont détruites.']},
+    {h:'4. Destruction', p:'Les supports contenant des informations de niveau Confidentiel ou Restreint sont effacés de manière sécurisée ou détruits physiquement (broyage) en fin de vie. Les destructions de supports contenant des données de santé sont consignées dans le registre de destruction tenu par le référent sécurité, conformément aux exigences de l\'hébergement de données de santé.'},
+    {h:'5. Responsabilités', p:'Chaque collaborateur applique les règles de manipulation correspondant au niveau des informations qu\'il traite. Les propriétaires d\'applications maintiennent la classification des données de leur périmètre. Le référent sécurité audite périodiquement les partages et droits en place.'}
+  ]
+},
+{
+  id:'acces', code:'POL-SEC-004', icon:'🔑', title:'Politique de contrôle d\'accès et d\'authentification',
+  desc:'Gestion des comptes et habilitations, MFA, comptes à privilèges, revues périodiques.',
+  iso:['A.5.15','A.5.16','A.5.17','A.5.18'], soc:['CC5','CC6'], nis:['i','j'], module2:['sec2','sec5','cmp2'], reco:'always',
+  summary:'Encadre l\'octroi, l\'usage et la révocation des accès : authentification forte via {{sso}}, MFA {{mfa}}, gestion dédiée des comptes à privilèges et revues d\'habilitations.',
+  sections:[
+    {h:'1. Principes', p:'Les accès aux systèmes de {{company}} sont accordés selon les principes du besoin d\'en connaître et du moindre privilège. Chaque compte est nominatif ; les comptes génériques et partagés sont proscrits sauf exception documentée et approuvée par le référent sécurité, avec credential de secours scellé.'},
+    {h:'2. Authentification', p:'L\'authentification passe par le fournisseur d\'identité central ({{sso}}). L\'authentification multifacteur ({{mfa}}) est exigée pour : l\'accès aux consoles d\'administration, l\'accès distant (VPN), les outils de production et tout service hébergeant des données de niveau Restreint. Les mots de passe des comptes locaux résiduels suivent une longueur minimale de 14 caractères et ne sont jamais réutilisés entre services.'},
+    {h:'3. Cycle de vie des accès', list:[
+      'Embauche : les accès sont créés sur la base d\'une demande du manager, a minima pour le poste standard ; les accès complémentaires sont demandés au cas par cas.',
+      'Mutation : les accès non justifiés par la nouvelle fonction sont retirés dans un délai de 5 jours ouvrés.',
+      'Départ : la révocation est effective le jour du départ ; la checklist RH transmet au référent sécurité la liste des comptes à désactiver.',
+      'Prestataires : comptes à durée limitée (expiration automatique), revue systématique à l\'échéance du contrat.']},
+    {h:'4. Comptes à privilèges', p:'Les comptes d\'administration sont nominatifs, tracés et utilisés uniquement pour les opérations nécessitant des privilèges élevés ; l\'usage quotidien se fait via un compte standard. L\'accès à privilèges aux environnements de production est accordé à titre temporaire (élévation juste-à-temps quand l\'outil le permet) et consigné. La liste des détenteurs est revue trimestriellement.'},
+    {h:'5. Revues d\'habilitations', p:'Une revue des droits est réalisée au moins semestriellement avec chaque responsable d\'application : comptes inactifs (90 jours sans connexion), comptes orphelins et droits non justifiés sont supprimés ou justifiés par écrit. Les résultats sont consignés et présentés lors de la revue de direction.'}
+  ]
+},
+{
+  id:'crypto', code:'POL-SEC-005', icon:'🔐', title:'Politique cryptographique et de gestion des clés',
+  desc:'Algorithmes et protocoles autorisés, chiffrement au repos et en transit, gestion du cycle de vie des clés.',
+  iso:['A.8.24'], soc:['CC6'], nis:['h'], module2:['sec3'], reco:'always',
+  summary:'Fixe les standards cryptographiques (TLS 1.2+, AES-256), le chiffrement systématique des données sensibles et le cycle de vie des clés via le gestionnaire de clés du cloud.',
+  sections:[
+    {h:'1. Standards autorisés', p:'Les mécanismes cryptographiques utilisés par {{company}} reposent exclusivement sur des algorithmes et protocoles reconnus et non obsolètes : TLS 1.2 minimum (1.3 recommandé) pour les flux réseau, AES-256 pour le chiffrement au repos, SHA-256 ou supérieur pour les empreintes. La création d\'algorithmes propriétaires ou l\'usage de primitives dépréciées (RC4, DES, TLS 1.0/1.1) est interdite.'},
+    {h:'2. Chiffrement en transit et au repos', p:'Toutes les communications externes et internes sensibles transitent en TLS. Les données de niveau Confidentiel et Restreint sont chiffrées au repos, y compris les bases de données, les sauvegardes et les postes de travail (chiffrement de disque activé par défaut via la gestion des terminaux). Les exports de données à destination de tiers sont chiffrés et transmis par un canal authentifié.'},
+    {h:'3. Gestion des clés', p:'Les clés de chiffrement sont générées et stockées dans le gestionnaire de clés de {{cloud}} ; aucune clé de production n\'est stockée dans le code source, les dépôts ou les documents. La rotation des clés intervient au moins tous les 12 mois, ou immédiatement en cas de suspicion de compromission. L\'accès au gestionnaire de clés est réservé à un groupe restreint d\'administrateurs identifiés, avec MFA et journalisation.'},
+    {h:'4. Certificats', p:'Les certificats TLS sont émis, renouvelés et surveillés de façon automatisée ; un certificat expirant sous 21 jours déclenche une alerte. L\'usage de certificats auto-signés en production est interdit.'}
+  ]
+},
+{
+  id:'logs', code:'POL-SEC-006', icon:'📜', title:'Politique de journalisation et de surveillance',
+  desc:'Événements journalisés, centralisation, rétention {{logretention}} mois, alerting et horloge de référence.',
+  iso:['A.8.15','A.8.16','A.8.17'], soc:['CC7'], nis:['e'], module2:['sec4'], reco:'always',
+  summary:'Définit les événements à journaliser, leur centralisation, la rétention de {{logretention}} mois et la surveillance avec alertes — mesure NIS 2 (e) et socle de la gestion d\'incidents.',
+  sections:[
+    {h:'1. Objet', p:'La journalisation permet la détection d\'événements suspects, l\'investigation après incident et la production de preuves. Cette politique définit ce qui est journalisé, où, pendant combien de temps et qui surveille.'},
+    {h:'2. Événements journalisés', list:[
+      'Authentifications (succès et échecs), créations/modifications/suppressions de comptes et de droits.',
+      'Accès et modifications des données de niveau Restreint.',
+      'Opérations d\'administration (élévations de privilèges, changements de configuration, accès aux sauvegardes).',
+      'Événements réseau significatifs aux frontières du SI (pare-feu, WAF, VPN).',
+      'Erreurs applicatives et redémarrages de services en production.']},
+    {h:'3. Centralisation et protection', p:'Les journaux sont centralisés dans la plateforme de supervision de {{cloud}} (journaux applicatifs, infrastructure et accès). Les journaux sont protégés contre la modification et la suppression (stockage immuable ou append-only) et leur accès est restreint aux administrateurs désignés. L\'horloge des systèmes est synchronisée sur une source de temps unique (NTP).'},
+    {h:'4. Rétention', p:'Les journaux d\'accès et de sécurité sont conservés {{logretention}} mois minimum — durée alignée sur les besoins d\'investigation et les attentes réglementaires (directive NIS 2, hébergement de données de santé). Au-delà, ils sont détruits selon la politique de classification (POL-SEC-003).'},
+    {h:'5. Surveillance et alertes', p:'Des règles d\'alerte couvrent a minima : échecs d\'authentification anormaux, connexions depuis des pays inhabituels, élévation de privilèges, volumétrie sortante anormale et indisponibilité de service. Les alertes sont traitées selon la procédure d\'incident (POL-SEC-008) ; {{oncall}} prend le relais hors heures ouvrées. L\'efficacité des règles est revue au moins semestriellement.'}
+  ]
+},
+{
+  id:'vuln', code:'POL-SEC-007', icon:'🛡️', title:'Politique de gestion des vulnérabilités techniques',
+  desc:'Scans, veille CVE, délais de correction (critique {{critdelay}} h), exceptions et preuves.',
+  iso:['A.8.8'], soc:['CC7'], nis:['e'], module2:['ops5'], reco:'always',
+  summary:'Encadre l\'identification et la correction des vulnérabilités : scans réguliers, veille CVE et délais de correction par criticité — critique sous {{critdelay}} heures, mesure NIS 2 (e).',
+  sections:[
+    {h:'1. Identification', p:'Les vulnérabilités sont identifiées par : scans automatisés d\'images conteneurs et de dépendances à chaque build (intégration continue), analyse périodique des configurations cloud (posture management), et veille sur les annonces CVE affectant les composants en production. Les tests d\'intrusion externes complètent le dispositif au moins annuellement et à chaque refonte majeure.'},
+    {h:'2. Délais de correction', table:{cols:['Criticité (CVSS)','Délai de correction','Exemples'],
+      rows:[['Critique (≥ 9,0 ou exploitée activement)','{{critdelay}} heures','RCE exposée, fuite de secret en clair'],
+            ['Élevée (7,0 – 8,9)','15 jours','Élévation de privilèges locale, XSS stocké'],
+            ['Moyenne (4,0 – 6,9)','60 jours','Fuite d\'information partielle'],
+            ['Faible (< 4,0)','Prochaine fenêtre de maintenance','Headers manquants']]}},
+    {h:'3. Compensation et exceptions', p:'Une vulnérabilité non corrigeable dans les délais (absence de correctif, incompatibilité applicative) doit faire l\'objet d\'une mesure compensatrice documentée (filtrage, isolation, surveillance renforcée) et d\'une exception approuvée par le référent sécurité avec date d\'échéance. Les exceptions sont revues mensuellement et rapportées en revue de direction.'},
+    {h:'4. Traçabilité', p:'Chaque vulnérabilité identifiée fait l\'objet d\'un ticket dans {{ittool}} avec criticité, responsable et statut jusqu\'à correction vérifiée. Le tableau de bord des vulnérabilités (ouvertes par criticité et ancienneté) est présenté au comité de sécurité.'}
+  ]
+}
+];
+
+/* ═══════════════ POLITIQUES 7 À 12 ═══════════════ */
+POLICIES.push(
+{
+  id:'incident', code:'POL-SEC-008', icon:'🚨', title:'Procédure de gestion des incidents de sécurité',
+  desc:'Cycle complet : détection, qualification, notification CNIL 72 h / NIS 2 (alerte 24 h, rapport 72 h), gestion de crise, retours d\'expérience.',
+  iso:['A.5.24','A.5.25','A.5.26','A.5.27','A.5.28'], soc:['CC7','CC2'], nis:['b'], module2:['inc1','inc2','inc3'], reco:'always',
+  summary:'Traite le cycle de vie complet des incidents : qualification, gestion de crise, obligations de notification (CNIL 72 h, ANSSI 24 h/72 h pour NIS 2) et revue post-incident.',
+  sections:[
+    {h:'1. Objet et définitions', p:'Un incident de sécurité est tout événement susceptible de compromettre la confidentialité, l\'intégrité ou la disponibilité des informations ou des systèmes de {{company}}. Un événement est un fait observé ; il devient incident après qualification par le référent sécurité. Cette procédure couvre également les incidents affectant un fournisseur et susceptibles d\'impacter nos clients.'},
+    {h:'2. Signalement et qualification', p:'Tout collaborateur signalant un événement suspect (courriel de phishing, comportement anormal, perte d\'équipement) contacte {{secmail}} — jamais le service concerné en direct. Le référent sécurité qualifie l\'événement sous 4 heures ouvrées en severity S1 (critique) à S4 (mineur), ouvre un ticket dans {{ittool}} et désigne un pilote d\'incident. Hors heures ouvrées, {{oncall}} assure la première réponse.'},
+    {h:'3. Gestion de crise (S1/S2)', list:[
+      'Le pilote constitue une cellule de crise restreinte (direction, référent sécurité, responsable du système concerné, juridique si données personnelles).',
+      'Priorité à la limitation : isolation des comptes/systèmes compromis, préservation des preuves (aucune réinstallation avant copie forensique des journaux concernés).',
+      'Une note de situation est produite toutes les 4 heures (S1) ou quotidiennement (S2) jusqu\'à retour à la normale.',
+      'La communication externe (clients, autorités) est validée par la direction et centralisée — aucun collaborateur ne communique de sa propre initiative.']},
+    {h:'4. Notifications obligatoires', table:{cols:['Autorité','Délai','Déclencheur'],
+      rows:[['CNIL (viol de données personnelles)','72 h après constat','Toute violation de données à caractère personnel (RGPD art. 33).'],
+            ['ANSSI — alerte (NIS 2 art. 23)','24 h après awareness','Incident significatif affectant le service ; première information, même incomplète.'],
+            ['ANSSI — rapport (NIS 2 art. 23)','72 h','Complément d\'analyse : appréciation de l\'impact, mesures prises, indicateurs.'],
+            ['Clients contractuels','selon contrat (24 h typiquement)','Incident affectant leurs données ou la disponibilité contractualisée.']]}},
+    {h:'5. Clôture et retour d\'expérience', p:'Tout incident S1-S3 donne lieu à une revue post-incident sous 10 jours ouvrés : chronologie, cause racine, efficacité de la réponse, actions correctives avec responsables et échéances. Les enseignements alimentent le registre des incidents tenu par le référent sécurité et la revue de direction annuelle (ISO 27001 clause 9.3). Le registre conserve a minima : horodatage détection/qualification/clôture, sévérité, systèmes affectés, actions, notifications effectuées.'}
+  ]
+},
+{
+  id:'continuity', code:'POL-SEC-009', icon:'♻️', title:'Politique de continuité et de reprise d\'activité',
+  desc:'RTO/RPO par service, sauvegardes (rétention {{bkretention}} j, test {{bktest}}), PCA, exercices annuels.',
+  iso:['A.5.29','A.5.30','A.8.13','A.8.14'], soc:['A1'], nis:['c'], module2:['ops2','ops4'], reco:'always',
+  summary:'Définit les objectifs de continuité (RTO/RPO), l\'organisation des sauvegardes et le plan de reprise, avec exercice annuel documenté — mesure NIS 2 (c).',
+  sections:[
+    {h:'1. Objet', p:'Cette politique assure la capacité de {{company}} à poursuivre ou reprendre ses activités critiques à la suite d\'un sinistre (panne majeure, cyberattaque, perte d\'un fournisseur). Elle est complétée par le plan de continuité d\'activité (PCA) décrivant les modalités opérationnelles par scénario.'},
+    {h:'2. Objectifs par service', table:{cols:['Service','RTO','RPO','Stratégie'],
+      rows:[['Plateforme SaaS (production)','4 h','15 min','Bascule inter-régions {{cloud}}, base répliquée synchrone'],
+            ['Outils internes (messagerie, CRM)','24 h','24 h','Restauration depuis sauvegardes'],
+            ['Postes de travail','72 h','—','Ré-imagerie standard, données synchronisées']]}},
+    {h:'3. Sauvegardes', p:'Les données de production (bases applicatives, configurations, secrets hors ligne) sont sauvegardées automatiquement avec une rétention de {{bkretention}} jours et une immuabilité empêchant la suppression — y compris compromettante (rançongiciel). Un test de restauration est réalisé à fréquence {{bktest}}, sur un environnement distinct, avec procès-verbal consignant périmètre, durée effective et écarts constatés.'},
+    {h:'4. Plan de continuité (PCA)', p:'Le PCA décrit les modes dégradés : organisation de crise (désignation du responsable de crise), travail à distance généralisé, priorisation des fonctions critiques, communication aux clients. Il est déclenché par la direction sur proposition du référent sécurité. Les pages d\'état et la communication client sont préparées en amont.'},
+    {h:'5. Exercices et maintenance', p:'Un exercice annuel alterne scénarios (bascule cloud, restauration de sauvegardes, perte des locaux). Chaque exercice fait l\'objet d\'un rapport avec écarts et plan d\'action. La présente politique et le PCA sont revus après chaque exercice et à chaque changement architectural majeur.'}
+  ]
+},
+{
+  id:'dev', code:'POL-SEC-010', icon:'🧑‍💻', title:'Politique de développement sécurisé',
+  desc:'Séparation des environnements, revue de code, analyse SAST/SCA, secrets, gestion des dépendances et SBOM.',
+  iso:['A.8.25','A.8.26','A.8.27','A.8.28','A.8.29','A.8.30','A.8.31'], soc:['CC8'], nis:['e','d'], module2:['dev1','dev2','dev3'], reco:'cond:internalApps',
+  summary:'Encadre le cycle de développement : environnements séparés, revue de code obligatoire, analyse automatique, gestion des secrets et des dépendances — conforme ISO 27001 A.8.25-8.31.',
+  sections:[
+    {h:'1. Environnements', p:'Les environnements de développement, de test et de production sont strictement séparés, avec droits d\'accès distincts. Les données de production ne sont jamais copiées vers les environnements de développement ou de test : les jeux de données synthétiques ou anonymisés sont utilisés. L\'accès de production depuis les environnements de développement est techniquement bloqué.'},
+    {h:'2. Revue de code et analyse', p:'Toute modification du code passe par une demande de fusion (pull request) relue par au moins un pair autre que l\'auteur. Le pipeline d\'intégration continue exécute systématiquement : analyse statique de sécurité (SAST), analyse des dépendances (SCA) et tests automatisés. Un build en échec sécurité ne peut pas être déployé. La couverture de test des modules critiques est suivie comme indicateur.'},
+    {h:'3. Gestion des secrets', p:'Aucune donnée d\'authentification (clé d\'API, mot de passe, certificat) ne figure dans le code source ou son historique. Les secrets sont gérés dans le coffre-fort de {{cloud}} et injectés au déploiement. Une détection de secrets commis par erreur déclenche la rotation immédiate de la credential exposée, même après retrait du fichier.'},
+    {h:'4. Dépendances et chaîne d\'approvisionnement', p:'Les dépendances sont versionnées de façon déterministe (lockfiles) et scannées à chaque build ; une dépendance vulnérable au-delà du seuil défini par la politique de gestion des vulnérabilités (POL-SEC-007) bloque le déploiement. Les artefacts sont signés et un inventaire des composants logiciels (SBOM) est produit à chaque version, conformément à la mesure NIS 2 (d).'},
+    {h:'5. Mise en production', p:'Le déploiement est automatisé, traçable et réversible (stratégie de retour arrière définie). Toute modification urgente hors revue est exceptionnelle, approuvée a posteriori sous 48 h et documentée. Les journaux de déploiement sont conservés.'}
+  ]
+},
+{
+  id:'cloud', code:'POL-SEC-011', icon:'☁️', title:'Politique cloud et sécurité de la chaîne d\'approvisionnement',
+  desc:'Services autorisés, responsabilités partagées, configuration IaC, exigences fournisseurs et sorties de service.',
+  iso:['A.5.19','A.5.20','A.5.21','A.5.22','A.5.23'], soc:['CC9'], nis:['d'], module2:['fourn1','fourn2','fourn3'], reco:'cond:cloud',
+  summary:'Encadre l\'usage du cloud et des fournisseurs : services autorisés, infrastructure as code, clauses contractuelles de sécurité et obligations de notification.',
+  sections:[
+    {h:'1. Usage des services cloud', p:'L\'infrastructure de production de {{company}} est hébergée sur {{cloud}}. Les services cloud sont choisis dans une liste approuvée par le référent sécurité ; l\'ouverture d\'un nouveau service ou d\'un nouveau SaaS fait l\'objet d\'une évaluation (localisation des données, sécurité, export des données) avant adoption. Le shadow IT — services souscrits sans évaluation — est interdit.'},
+    {h:'2. Responsabilités partagées', p:'Le modèle de responsabilité partagée du fournisseur cloud est documenté par service : {{company}} reste responsable de la configuration, de la gestion des accès et des données ; le fournisseur de l\'infrastructure sous-jacente. La configuration des ressources est définie comme code (IaC) et revue ; les dérives de configuration par rapport à la référence sont détectées automatiquement (policy as code).'},
+    {h:'3. Exigences fournisseurs', p:'Tout fournisseur accédant à des données de niveau Confidentiel ou Restreint s\'engage contractuellement à : appliquer des mesures de sécurité au moins équivalentes, notifier tout incident susceptible d\'affecter nos données sous 24 h, préciser les localisations d\'hébergement et de support, et permettre l\'audit ou fournir une attestation (ISO 27001, SOC 2 ou équivalent). Le registre des fournisseurs critiques est tenu à jour dans {{ittool}}.'},
+    {h:'4. Sortie de service', p:'La réversibilité est préparée : les données et configurations sont exportables dans des formats documentés ; un scénario de sortie (migration ou arrêt) est évalué lors de l\'adoption de chaque service critique et revu annuellement. À la fin d\'un contrat, les données sont récupérées puis leur destruction est exigée et attestée par le fournisseur.'}
+  ]
+},
+{
+  id:'remote', code:'POL-SEC-012', icon:'🏠', title:'Politique de télétravail et d\'usage des équipements mobiles',
+  desc:'Équipements gérés, MFA, séparation des usages, réseaux domestiques/publics, voyages.',
+  iso:['A.6.7','A.8.1'], soc:['CC6'], nis:['i'], module2:['cmp3','sec6'], reco:'cond:remote',
+  summary:'Encadre le travail à distance : postes gérés et chiffrés, MFA sur tous les accès distants, règles de bon sens sur réseaux domestiques et publics.',
+  sections:[
+    {h:'1. Équipements', p:'L\'accès à distance aux systèmes de {{company}} s\'effectue exclusivement depuis des équipements gérés par l\'entreprise (postes sous MDM, chiffrés, avec EDR et mises à jour automatiques). L\'usage d\'un équipement personnel non géré pour accéder aux données de niveau Confidentiel ou Restreint est interdit.'},
+    {h:'2. Accès distant', p:'L\'accès distant passe par le SSO ({{sso}}) avec authentification multifacteur ({{mfa}}) obligatoire. Les sessions sont chiffrées de bout en bout ; aucun service de production n\'est exposé directement sur Internet sans passer par les passerelles d\'authentification de l\'entreprise.'},
+    {h:'3. Environnement de travail', list:[
+      'Réseau domestique : la box utilise un chiffrement WPA2/AES minimum avec mot de passe robuste ; le firmware est maintenu à jour.',
+      'Réseaux publics : la connexion passe systématiquement par le VPN ; aucune donnée Restreinte n\'est consultée sur un écran exposé.',
+      'Séparation des usages : les comptes et navigateurs professionnels sont distincts des usages personnels ; les membres de la famille n\'utilisent pas l\'équipement professionnel.',
+      'Voyages : les équipements restent en cabine ; les mesures d\'authentification renforcées (code PIN biométrique) restent actives.']},
+    {h:'4. Signalement', p:'Toute perte ou vol d\'équipement est signalée immédiatement à {{secmail}} ; le référent sécurité déclenche la révocation des sessions et le verrouillage/l\'effacement distant selon la situation, et qualifie l\'incident conformément à POL-SEC-008.'}
+  ]
+},
+{
+  id:'hr', code:'POL-SEC-013', icon:'👥', title:'Politique de ressources humaines et sensibilisation',
+  desc:'Embauche, clause de confidentialité, sensibilisation initiale et continue, tests phishing, départs et sanctions.',
+  iso:['Clause 7.2','A.6.1','A.6.2','A.6.3','A.6.4','A.6.5'], soc:['CC1'], nis:['g','i'], module2:['cmp1','cmp2'], reco:'always',
+  summary:'Encadre le volet humain de la sécurité : intégration, sensibilisation continue avec campagnes de phishing simulé, et sécurisation des départs.',
+  sections:[
+    {h:'1. Intégration', p:'Tout nouveau collaborateur de {{company}} signe un engagement de confidentialité avant son premier accès aux systèmes, suit un module de sensibilisation sécurité lors de sa première semaine (classification, MFA, signalement d\'incident, phishing) et reçoit la PSSI (POL-SEC-001) pour accusé de lecture. Ses accès sont créés conformément à la politique de contrôle d\'accès (POL-SEC-003).'},
+    {h:'2. Sensibilisation continue', p:'La sécurité est entretenue par des actions régulières : rappels thématiques (au moins trimestriels), campagnes de phishing simulé avec débriefing bienveillant, et exercices concrets (signalement d\'un courriel suspect). Les taux de clic et de signalement sont suivis comme indicateurs et présentés en revue de direction — sans usage individuel punitif des résultats de simulation.'},
+    {h:'3. Départs et mutations', p:'Le départ d\'un collaborateur déclenche : transfert ou archivage des données professionnelles, révocation de l\'ensemble des accès le jour même, restitution des équipements, et rappel des obligations de confidentialité qui survivent au contrat. La checklist de départ est co-signée par le manager, les RH et le référent sécurité ; une revue des comptes actifs est effectuée trimestriellement pour détecter les oublis.'},
+    {h:'4. Sanctions', p:'Les manquements intentionnels à la sécurité (contournement de mesures, divulgation) sont traités conformément au règlement intérieur et à la législation du travail applicable ; les erreurs de bonne foi, notamment lorsqu\'elles sont auto-signalées, sont traitées prioritairement comme des occasions d\'apprentissage — l\'objectif étant de maintenir une culture du signalement.'}
+  ]
+},
+{
+  id:'audit', code:'POL-SEC-014', icon:'📊', title:'Politique de surveillance, audit et amélioration continue',
+  desc:'Indicateurs sécurité, audit interne du SMSI, revue de direction — évaluation de l\'efficacité des mesures (NIS 2 f).',
+  iso:['Clause 9.1','Clause 9.2','Clause 9.3','A.5.35'], soc:['CC4'], nis:['f'], module2:['aud1','aud2','aud3'], reco:'always',
+  summary:'Évalue en continu l\'efficacité des mesures de sécurité : indicateurs, audit interne périodique et revue de direction — mesure NIS 2 (f) et clauses 9.1-9.3 de l\'ISO 27001.',
+  sections:[
+    {h:'1. Objet', p:'Les mesures de sécurité n\'ont de valeur que si leur efficacité est vérifiée. Cette politique définit comment {{company}} surveille, mesure et améliore son système de management de la sécurité de l\'information (SMSI), conformément aux clauses 9.1 à 9.3 de l\'ISO/IEC 27001:2022 et à la mesure (f) de l\'article 21.2 de la directive NIS 2 : évaluation de l\'efficacité des mesures techniques et organisationnelles.'},
+    {h:'2. Indicateurs de sécurité', p:'Un tableau de bord d\'indicateurs est maintenu par le référent sécurité et présenté au moins trimestriellement. Il comprend a minima : couverture MFA des accès à privilèges, taux de correction des vulnérabilités dans les délais, ancienneté des vulnérabilités critiques ouvertes, taux de clic et de signalement des campagnes de phishing, nombre et sévérité des incidents, disponibilité des services critiques et résultat des tests de restauration. Les dérives par rapport aux cibles font l\'objet d\'actions documentées.'},
+    {h:'3. Audit interne', p:'Un audit interne du SMSI est réalisé au moins annuellement, par un auditeur interne formé et indépendant du périmètre audité ou par un prestataire externe. Le programme d\'audit couvre les processus du SMSI et un échantillon de contrôles techniques. Les écarts constatés sont consignés, affectés à un responsable avec échéance, et suivis jusqu\'à clôture. Les rapports d\'audit sont conservés et présentés en revue de direction.'},
+    {h:'4. Revue de direction', p:'La direction revient au moins annuellement sur le SMSI : résultats d\'audits et d\'indicateurs, incidents significatifs et retours d\'expérience, état du registre des risques et du plan de traitement, adéquation des ressources et opportunités d\'amélioration. Les décisions (actions, ressources, objectifs révisés) sont consignées dans le procès-verbal de revue.'},
+    {h:'5. Amélioration continue', p:'Les non-conformités, incidents et exercises alimentent un registre unique d\'actions correctives et préventives. Chaque action a un responsable, une échéance et un critère de clôture vérifiable. L\'ensemble des politiques du présent pack est revu au moins annuellement, et à chaque changement organisationnel, technique ou réglementaire significatif.'}
+  ]
+}
+);
+
+/* classRows() est définie dans policies_part2a.js (avant POLICIES) */
+
+
+/* ═══════════════ MOTEUR ═══════════════ */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+let state = {
+  screen: 0,
+  vars: {company:'', author:'', date:'', review:'',
+         sso:'Google Workspace + SSO', mfa:'authentificateur TOTP et clé FIDO2',
+         ittool:'Jira Service Management', cmdb:'registre des actifs (Module 2)',
+         cloud:'Microsoft Azure', classlevels:'3', critdelay:'72', logretention:'12',
+         secmail:'securite@entreprise.fr', oncall:'aucune astreinte formalisée',
+         bkretention:'35', bktest:'S'},
+  selected: [],          // ids des politiques retenues
+  overrides: {},         // {polId: {varName: valeur locale}}
+  docIndex: 0
+};
+
+const TENANT_STORAGE_PREFIX = `secureframe:${document.body.dataset.tenantId}:`;
+const POLICY_STORAGE_KEY = TENANT_STORAGE_PREFIX + 'policies_state';
+function save(){
+  if(!hasData()){
+    localStorage.removeItem(POLICY_STORAGE_KEY);
+    updateResumeCard();
+    return;
+  }
+  try{ localStorage.setItem(POLICY_STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ toast('Impossible d’enregistrer le brouillon dans ce navigateur. Exportez votre travail avant de quitter.'); }
+  updateResumeCard();
+}
+function load(){
+  try{ const r = localStorage.getItem(POLICY_STORAGE_KEY); if(r){ state = JSON.parse(r); return true; } }
+  catch(e){ toast('Le brouillon local est illisible. Vous pouvez le réinitialiser ou démarrer un nouveau pack.'); }
+  return false;
+}
+function hasData(){ return state.selected.length>0 || state.vars.company; }
+
+/* Profil d'entreprise : pilote la sélection recommandée.
+   En production, lu depuis l'évaluation du Module 2 (localStorage partagé). */
+function readModule2(){
+  try{
+    const raw = localStorage.getItem(TENANT_STORAGE_PREFIX + 'audit_iso_state');
+    if(!raw) return null;
+    const m2 = JSON.parse(raw);
+    const hasInternal = (m2.assets||[]).some(a => a.type==='app' || a.type==='data');
+    const hasCloud = (m2.assets||[]).some(a => ['cloud','saas'].includes(a.type) || ['us','autre','mixte'].includes(a.loc));
+    const findings = [];
+    Object.values(m2.answers||{}).forEach(()=>{}); // garde-fou structure
+    const bad = Object.entries(m2.answers||{}).filter(([id,a]) => a.v==='pc'||a.v==='nc').map(([id])=>id);
+    return {company:m2.company?.name, assets:(m2.assets||[]).length, hasInternal, hasCloud,
+            soc2:!!m2.company?.soc2, nis2:!!m2.company?.nis2, bad};
+  }catch(e){ return null; }
+}
+function profile(){
+  const m2 = readModule2();
+  return {
+    internalApps: m2 ? m2.hasInternal : true,
+    cloud: m2 ? m2.hasCloud : true,
+    remote: true, hr: true,
+    m2
+  };
+}
+function recommended(){
+  const p = profile();
+  return POLICIES.filter(pol =>
+    pol.reco==='always' ||
+    (pol.reco==='cond:internalApps' && p.internalApps) ||
+    (pol.reco==='cond:cloud' && p.cloud) ||
+    (pol.reco==='cond:remote' && p.remote)
+  ).map(pol => pol.id);
+}
+
+/* ── Interpolation des variables avec surlignage ── */
+/* Valeur effective = override local > variable globale > défaut */
+function valOf(name){
+  return (state.overrides[state.selected[state.docIndex]]||{})[name] ?? state.vars[name] ?? '';
+}
+function interp(str, vars, withHL){
+  return String(str).replace(/\{\{(\w+)\}\}/g, (_,k) => {
+    const v = vars[k];
+    if(v===undefined || v==='') return withHL?`<span class="var-hl">【${labelOf(k)}】</span>`:`【${labelOf(k)}】`;
+    return withHL?`<span class="var-hl" title="personnalisé">${esc(v)}</span>`:esc(v);
+  });
+}
+const VAR_LABELS = {company:'Raison sociale', author:'Référent du pack', date:'Date d\'approbation', review:'Prochaine revue',
+  sso:'SSO / fournisseur d\'identité', mfa:'Solution MFA', ittool:'Outil tickets / inventaire', cmdb:'Répertoire des actifs',
+  cloud:'Fournisseur cloud', classlevels:'Niveaux de classification', critdelay:'Délai vulnérabilités critiques (h)',
+  logretention:'Rétention journaux (mois)', secmail:'Contact incidents', oncall:'Astreinte', bkretention:'Rétention sauvegardes (j)', bktest:'Fréquence test restauration'};
+function labelOf(k){ return VAR_LABELS[k] || k; }
+function fmtDateFR(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+
+/* Variables affichables (dates en français, valeurs de listes humanisées) */
+function displayVars(polId){
+  const ov = state.overrides[polId]||{};
+  const v = {...state.vars, ...ov};
+  return {
+    ...v,
+    date: fmtDateFR(v.date), review: fmtDateFR(v.review),
+    bktest: v.bktest==='T'?'trimestrielle':v.bktest==='S'?'semestrielle':'annuelle',
+    classlevels: v.classlevels
+  };
+}
+
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ── Génération du HTML papier d'une politique ── */
+function policyPaperHTML(pol, vars, withHL, printMode){
+  const idx = state.selected.indexOf(pol.id);
+  const num = idx>=0 ? String(idx+1).padStart(3,'0') : pol.code.slice(-3);
+  const code = 'POL-SEC-' + num;
+  let body = '';
+  pol.sections.forEach(sec => {
+    body += `<h2>${sec.h}</h2>`;
+    if(sec.p) body += `<p>${interp(sec.p, vars, withHL)}</p>`;
+    if(sec.list) body += '<ul>' + sec.list.map(li=>`<li>${interp(li, vars, withHL)}</li>`).join('') + '</ul>';
+    if(sec.table){
+      const rows = sec.h.includes('classification') ? classRows(+vars.classlevels) : sec.table.rows;
+      body += `<table class="tbl-wrap"><thead><tr>${sec.table.cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
+        rows.map(r=>`<tr>${r.map(c=>`<td>${interp(c, vars, withHL)}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
+    }
+  });
+  return `
+  <div class="p-kicker">${esc(state.vars.company)||'Entreprise'} — Sécurité de l'information</div>
+  <h1>${pol.title}</h1>
+  <div class="p-sub">${code} · Version 1.0 · ${interp('Applicable à tous les collaborateurs et prestataires', vars, false)}</div>
+  <div class="cartouche">
+    <table class="hist-table">
+      <tr><th>Identification</th><td><b>${code}</b> — ${pol.title}</td></tr>
+      <tr><th>Classification</th><td>Interne — Diffusion limitée aux collaborateurs</td></tr>
+      <tr><th>Propriétaire</th><td>${interp('{{author}}', vars, withHL)}</td></tr>
+      <tr><th>Approuvé par</th><td>Direction de ${interp('{{company}}', vars, withHL)}</td></tr>
+      <tr><th>Date d'application</th><td>${interp('{{date}}', vars, withHL)}</td></tr>
+      <tr><th>Prochaine revue</th><td>${interp('{{review}}', vars, withHL)}</td></tr>
+      <tr><th>Référentiels couverts</th><td>${pol.iso.map(r=>`<span class="badge iso">${r}</span>`).join(' ')} ${pol.soc.map(r=>`<span class="badge soc">${r}</span>`).join(' ')} ${pol.nis.map(r=>`<span class="badge nis">NIS2 ${r}</span>`).join(' ')}</td></tr>
+    </table>
+  </div>
+  ${pol.summary?`<p><i>${interp(pol.summary, vars, withHL)}</i></p>`:''}
+  ${body}
+  <div class="sign-grid">
+    <div class="sign-box">Rédigé par<div class="sig-line">Nom, date, signature — ${interp('{{author}}', vars, withHL)}</div></div>
+    <div class="sign-box">Approuvé par la direction<div class="sig-line">Nom, date, signature</div></div>
+  </div>
+  <div class="ref-foot">${code} v1.0 — Document généré par la Plateforme Conformité PME (Module 3) pour ${interp('{{company}}', vars, withHL)}. Référentiels : ISO/IEC 27001:2022 · NIS 2 (UE) 2022/2555 art. 21 · SOC 2 TSC (AICPA). Modèle générique à adapter au contexte et à faire valider juridiquement avant diffusion officielle.</div>`;
+}
+
+/* ── Couverture référentiels du pack ── */
+function computeCoverage(){
+  const sel = POLICIES.filter(p => state.selected.includes(p.id));
+  const targets = [
+    {key:'iso', label:'ISO/IEC 27001:2022 — contrôles du socle', cls:'iso',
+     need:[['A.5.1','Gouvernance'],['A.5.9-13','Classification'],['A.5.15-18','Contrôle d\'accès'],['A.8.24','Cryptographie'],
+           ['A.8.15-17','Journalisation'],['A.8.8','Vulnérabilités'],['A.5.24-28','Incidents'],['A.5.29-30','Continuité'],
+           ['A.8.25-31','Développement'],['A.5.19-23','Fournisseurs/cloud'],['A.6.7','Télétravail'],['A.6.1-5','RH/compétences'],
+           ['Clause 5.2','Politique de sécurité'],['Clause 9.x','Surveillance & revue']]},
+    {key:'nis', label:'NIS 2 art. 21.2 — mesures minimales', cls:'nis',
+     need:[['a','Politiques/risques'],['b','Incidents'],['c','Continuité'],['d','Chaîne d\'approvisionnement'],
+           ['e','Réseaux & systèmes'],['f','Évaluation efficacité'],['g','Hygiène & formation'],['h','Cryptographie'],
+           ['i','RH/accès/actifs'],['j','MFA & communications']]},
+    {key:'soc', label:'SOC 2 — critères TSC (si visé)', cls:'soc', onlyIf:'soc2',
+     need:[['CC1','Contrôle & gouvernance'],['CC2','Communication'],['CC3','Risques'],['CC4','Surveillance'],
+           ['CC5','Entrées logiques'],['CC6','Activités de contrôle'],['CC7','Opérations'],['CC8','Changements'],['CC9','Fournisseurs']]}
+  ];
+  const out = [];
+  targets.forEach(t => {
+    if(t.onlyIf==='soc2' && !(profile().m2?.soc2 ?? false)) return;
+    const rows = t.need.map(([code, lbl]) => {
+      const covering = sel.filter(p =>
+        (t.key==='iso' && p.iso.some(r => r.includes(code.replace(/-\d+$/,'').split('-')[0]) || code.startsWith(r.split(' ')[0]))) ||
+        (t.key==='nis' && p.nis.includes(code)) ||
+        (t.key==='soc' && p.soc.some(r => r.startsWith(code)))
+      );
+      return {code, lbl, n:covering.length, names:covering.map(p=>p.code)};
+    });
+    const covered = rows.filter(r=>r.n>0).length;
+    out.push({...t, rows, covered, total:rows.length, pct: Math.round(covered/rows.length*100)});
+  });
+  return out;
+}
+
+/* ── Croisement Module 2 : constats traités par le pack ── */
+function module2Gaps(){
+  const m2 = profile().m2;
+  if(!m2 || !m2.bad?.length) return null;
+  const treated = new Set();
+  POLICIES.filter(p=>state.selected.includes(p.id)).forEach(p => (p.module2||[]).forEach(id => treated.add(id)));
+  const CTRL_TXT = {
+    ctx1:'Périmètre SMSI documenté', ctx2:'Engagement direction & politique', ctx3:'Rôles et responsabilités', ctx4:'Contexte & exigences légales',
+    rsk1:'Méthodologie risques', rsk2:'Appréciation des risques', rsk3:'Plan de traitement', rsk4:'Déclaration d\'applicabilité (SOA)',
+    cmp1:'Sensibilisation des employés', cmp2:'Départs & disciplinaire', cmp3:'Télétravail & mobile',
+    ops1:'Procédures & changements', ops2:'Sauvegardes testées', ops3:'Capacité & logiciels approuvés', ops4:'PCA/PRIA formalisé',
+    ops5:'Vulnérabilités corrigées', ops6:'Supports amovibles & destruction',
+    sec1:'Cloisonnement réseau', sec2:'MFA imposé', sec3:'Chiffrement', sec4:'Journalisation centralisée', sec5:'Gestion des droits', sec6:'Postes durcis',
+    dev1:'Séparation dev/prod', dev2:'Cycle de développement sécurisé', dev3:'Tests d\'intrusion',
+    inc1:'Procédure d\'incident', inc2:'Registre & revue post-incident', inc3:'Notifications CNIL/ANSSI',
+    fourn1:'Contrats fournisseurs', fourn2:'Services cloud maîtrisés', fourn3:'Chaîne d\'approvisionnement',
+    aud1:'KPI/KRI sécurité', aud2:'Audit interne SMSI', aud3:'Revue de direction'
+  };
+  return m2.bad.map(id => ({id, txt:CTRL_TXT[id]||id, treated: treated.has(id)}));
+}
+
+/* ═══════════════ SCÉNARIO RÉEL : MediTrack ═══════════════ */
+const DEMO = {
+  vars: {company:'MediTrack SAS', author:'Marc Ferrand, CTO',
+    date:'2026-11-25', review:'2027-11-25',
+    sso:'Google Workspace (SSO + conditional access)', mfa:'authentificateur TOTP et clés FIDO2 pour les admins',
+    ittool:'Jira Service Management', cmdb:'inventaire des actifs (Plateforme, étape 2 du Module 2)',
+    cloud:'Microsoft Azure (régions France Central / North Europe)',
+    classlevels:'3', critdelay:'72', logretention:'12',
+    secmail:'securite@meditrack.fr', oncall:'astreinte téléphonique 7j/7 (standard de sécurité, n° interne 4999)',
+    bkretention:'35', bktest:'S'},
+  selected: ['pssi','classif','acces','crypto','logs','vuln','incident','continuity','dev','cloud','remote','hr','audit','risques']
+};
+
+/* ═══════════════ RENDUS ═══════════════ */
+const STEPS = [
+  {n:1, lbl:'Variables',     sub:'Entreprise & personnalisation'},
+  {n:2, lbl:'Catalogue',     sub:'14 politiques pré-rédigées'},
+  {n:3, lbl:'Prévisualisation', sub:'Relecture au format papier'},
+  {n:4, lbl:'Couverture',    sub:'Référentiels & export'}
+];
+function renderStepper(){
+  $('#stepper').innerHTML = STEPS.map(s => {
+    const cls = state.screen===s.n ? 'active' : (state.screen>s.n ? 'done' : '');
+    const mark = state.screen>s.n ? '✓' : s.n;
+    return `<li class="${cls}" data-step="${s.n}"><span class="num">${mark}</span><span class="lbl"><b>${s.lbl}</b><small>${s.sub}</small></span></li>`;
+  }).join('');
+  $$('#stepper li').forEach(li => li.onclick = () => { if(canGo(+li.dataset.step)) goTo(+li.dataset.step); });
+}
+function goTo(n){ state.screen=n; renderAll(); window.scrollTo(0,0); }
+function canGo(n){
+  if(n>=2 && !state.vars.company){ toast('Renseignez d\'abord la raison sociale (étape 1)'); return false; }
+  if(n>=3 && state.selected.length===0){ toast('Sélectionnez au moins une politique (étape 2)'); return false; }
+  return true;
+}
+
+/* ── Écran 1 : variables ── */
+const VAR_FIELDS = ['company','author','date','review','sso','mfa','ittool','cmdb','cloud','classlevels','critdelay','logretention','secmail','oncall','bkretention','bktest'];
+function renderVars(){
+  VAR_FIELDS.forEach(k => { const el = $('#v_'+k); if(el) el.value = state.vars[k] ?? ''; });
+  const p = profile();
+  const m2 = p.m2;
+  if(m2){
+    let info = `<b>Évaluation Module 2 détectée : ${esc(m2.company||'entreprise')}</b> (${m2.assets} actifs · ${m2.bad.length} écarts ouverts · ${m2.soc2?'SOC 2 visé':''} ${m2.nis2?'NIS 2 visé':''})`;
+    info += `<br>La sélection recommandée (étape 2) en tient compte : politiques développement ${m2.hasInternal?'incluses (applications internes)':'exclues'}, cloud ${m2.hasCloud?'incluses':'exclues'}.`;
+    $('#m2info').innerHTML = info; $('#m2info').style.display='';
+  } else { $('#m2info').style.display='none'; }
+}
+
+/* ── Écran 2 : catalogue ── */
+function renderCatalog(){
+  const p = profile(); const reco = recommended();
+  $('#polGrid').innerHTML = POLICIES.map(pol => {
+    const on = state.selected.includes(pol.id);
+    const isReco = reco.includes(pol.id);
+    const condTxt = pol.reco==='cond:internalApps' ? 'recommandée si applications développées en interne'
+                  : pol.reco==='cond:cloud' ? 'recommandée si usage cloud / SaaS'
+                  : pol.reco==='cond:remote' ? 'recommandée si télétravail' : 'toujours requise';
+    return `<div class="pol-card ${on?'selected':''}">
+      <div class="pol-top"><span class="pol-code">${pol.code}</span>${isReco?'<span class="badge info">⚡ recommandée</span>':''}</div>
+      <h3>${pol.icon} ${pol.title}</h3>
+      <p>${pol.desc}</p>
+      <div class="pol-refs">
+        ${pol.iso.slice(0,3).map(r=>`<span class="badge iso">${r}</span>`).join('')}
+        ${pol.soc.slice(0,2).map(r=>`<span class="badge soc">${r}</span>`).join('')}
+        ${pol.nis.map(r=>`<span class="badge nis">NIS2 ${r}</span>`).join('')}
+      </div>
+      <div class="pol-sel">
+        <label><input type="checkbox" data-pol="${pol.id}" ${on?'checked':''}> Inclure dans le pack</label>
+        <small style="color:var(--muted);font-size:11px;margin-left:auto">${condTxt}</small>
+      </div>
+    </div>`;
+  }).join('');
+  $('#polGrid').querySelectorAll('[data-pol]').forEach(cb => cb.onchange = () => {
+    const id = cb.dataset.pol;
+    if(cb.checked){ if(!state.selected.includes(id)) state.selected.push(id); }
+    else state.selected = state.selected.filter(x=>x!==id);
+    delete state.overrides[id];
+    if(state.docIndex >= state.selected.length) state.docIndex = Math.max(0, state.selected.length-1);
+    save(); renderCatalog(); updateSideScore();
+  });
+}
+function selectAll(on){ state.selected = on ? POLICIES.map(p=>p.id) : []; state.docIndex=0; save(); renderCatalog(); updateSideScore(); }
+
+/* ── Écran 3 : prévisualisation ── */
+function renderPaper(){
+  const sel = state.selected;
+  if(!sel.length){ $('#paperView').innerHTML = '<div class="empty">Aucune politique sélectionnée.</div>'; return; }
+  if(state.docIndex >= sel.length) state.docIndex = sel.length-1;
+  $('#docSelect').innerHTML = sel.map((id,i)=>{
+    const pol = POLICIES.find(p=>p.id===id);
+    return `<option value="${i}" ${i===state.docIndex?'selected':''}>${pol.code} — ${pol.title.length>52?pol.title.slice(0,52)+'…':pol.title}</option>`;
+  }).join('');
+  $('#docSelect').onchange = () => { state.docIndex = +$('#docSelect').value; renderPaper(); };
+  const pol = POLICIES.find(p=>p.id===sel[state.docIndex]);
+  const vars = displayVars(pol.id);
+  $('#paperCount').textContent = `Document ${state.docIndex+1} / ${sel.length}`;
+  $('#paperView').innerHTML = policyPaperHTML(pol, vars, true, false);
+  $('#btnPrintOne').onclick = () => printPack([pol.id]);
+}
+function stepDoc(d){
+  const n = state.selected.length; if(!n) return;
+  state.docIndex = (state.docIndex + d + n) % n; renderPaper();
+  $('#paperView').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ── Écran 4 : couverture + référentiel + export ── */
+function renderCoverage(){
+  const cov = computeCoverage();
+  const gaps = module2Gaps();
+  const sel = POLICIES.filter(p=>state.selected.includes(p.id));
+  let html = `
+  <div class="card">
+    <h2>Pack généré</h2>
+    <div class="stat-grid">
+      <div class="stat" style="background:var(--accent-soft)"><b style="color:var(--accent)">${sel.length}</b><span>politiques incluses</span></div>
+      <div class="stat" style="background:var(--ok-soft)"><b style="color:var(--ok)">${sel.reduce((s,p)=>s+p.sections.length,0)}</b><span>sections rédigées</span></div>
+      <div class="stat" style="background:var(--soc-soft)"><b style="color:var(--soc)">${sel.reduce((s,p)=>s+p.iso.length,0)}</b><span>exigences ISO citées</span></div>
+      <div class="stat" style="background:var(--nis-soft)"><b style="color:var(--nis)">${new Set(sel.flatMap(p=>p.nis)).size}/10</b><span>mesures NIS 2 couvertes</span></div>
+    </div>
+    <div class="export-bar" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px">
+      <button class="btn primary" id="btnPrintPack">🖨️ Exporter le pack complet (PDF / impression)</button>
+      <button class="btn ghost" id="btnJsonPack">⬇ Pack + métadonnées (JSON)</button>
+      <button class="btn ghost" id="btnCsvRef">⬇ Référentiel documentaire (CSV)</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Couverture des référentiels</h2>
+    <p class="sub">Vérifiez que chaque exigence du socle est couverte par au moins une politique du pack${profile().m2?.soc2?' — SOC 2 détecté actif dans le Module 2':''}.</p>
+    ${cov.map(c => `
+      <h3 style="margin:14px 0 6px;font-size:13.5px"><span class="badge ${c.cls}" style="font-size:11.5px">${c.label}</span> <b>${c.covered}/${c.total}</b> exigences couvertes</h3>
+      ${c.rows.map(r=>`
+        <div class="cov-row">
+          <div class="nm">${r.code} — ${r.lbl}<small>${r.n?`couvert par ${r.names.join(', ')}`:'non couvert — ajouter la politique correspondante'}</small></div>
+          <div class="tk"><i style="width:${r.n?Math.min(100, r.n*50):0}%;background:${r.n?'#16a34a':'#dc2626'}"></i></div>
+          <div>${r.n?`<span class="badge ok">✓</span>`:`<span class="badge crit">✗</span>`}</div>
+        </div>`).join('')}
+    `).join('')}
+  </div>
+
+  <div class="card">
+    <h2>Référentiel documentaire du pack</h2>
+    <p class="sub">Numérotation automatique attribuée à la génération — à reporter dans le registre documentaire du SMSI (ISO 27001 clause 7.5).</p>
+    <div class="doc-tree">
+      <div class="lvl1">Niveau 1 — Politiques (approbation direction)</div>
+      ${sel.map(p=>`<div class="lvl2"><span class="dc">${p.code}</span><span>${p.title}</span><span class="st">${p.iso[0]}${p.iso[1]?' +':''}… · v1.0 · ${fmtDateFR(state.vars.date)}</span></div>`).join('')}
+    </div>
+  </div>`;
+
+  if(gaps){
+    const treated = gaps.filter(g=>g.treated), untreated = gaps.filter(g=>!g.treated);
+    html += `<div class="card">
+      <h2>Croisement avec l'évaluation ISO 27001 (Module 2)</h2>
+      <p class="sub">Écarts constatés lors de l'évaluation : ${gaps.length} · traités par une politique du pack : ${treated.length} · non couverts : ${untreated.length}.</p>
+      ${untreated.length ? untreated.map(g=>`
+        <div class="gap-item">
+          <div class="g-head"><h4>${g.txt} <span class="badge gray">${g.id}</span></h4><span class="badge warn">non couvert par le pack</span></div>
+          <p>Aucune politique sélectionnée ne traite cet écart. Vérifiez la sélection à l'étape 2 ou planifiez une action dédiée dans le plan de remédiation (Module 2, étape 5).</p>
+        </div>`).join('')
+      : `<div class="empty" style="border-color:#bbf7d0;background:#f0fdf4">✓ Tous les écarts du Module 2 impliquant une politique documentaire sont couverts par le pack.</div>`}
+    </div>`;
+  }
+  $('#coverage').innerHTML = html;
+  $('#btnPrintPack').onclick = () => printPack();
+  $('#btnJsonPack').onclick = exportJson;
+  $('#btnCsvRef').onclick = exportCsv;
+}
+
+function updateSideScore(){
+  const n = state.selected.length;
+  $('#sideScoreVal').textContent = n ? n+' / 14' : '—';
+  $('#sideScoreBar').style.width = (n/POLICIES.length*100)+'%';
+  $('#sideScoreLbl').textContent = n ? (n===14?'Pack complet':'Pack partiel') + ' · ' + (state.vars.company||'sans nom') : 'Aucune politique sélectionnée';
+}
+function updateResumeCard(){ $('#startResume').classList.toggle('disabled', !hasData()); }
+
+function renderAll(){
+  renderStepper();
+  $$('.screen').forEach(s => s.classList.remove('visible'));
+  $('#screen-'+state.screen).classList.add('visible');
+  updateResumeCard();
+  if(state.screen===1) renderVars();
+  if(state.screen===2) renderCatalog();
+  if(state.screen===3) renderPaper();
+  if(state.screen===4) renderCoverage();
+  updateSideScore();
+  save();
+}
+
+/* ═══════════════ EXPORTS ═══════════════ */
+function download(name, content, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:mime}));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+  toast('Fichier généré : '+name);
+}
+function printPack(onlyIds){
+  const ids = onlyIds || state.selected;
+  $('#print-pack').innerHTML = ids.map(id => {
+    const pol = POLICIES.find(p=>p.id===id);
+    return '<div class="paper">' + policyPaperHTML(pol, displayVars(pol.id), false, true) + '</div>';
+  }).join('');
+  toast(ids.length>1 ? `Pack prêt — ${ids.length} documents envoyés à l'impression` : 'Document envoyé à l\'impression');
+  setTimeout(()=>window.print(), 350);
+}
+function exportJson(){
+  const sel = POLICIES.filter(p=>state.selected.includes(p.id));
+  const dossier = {
+    meta:{module:'Module 3 — Politiques de sécurité prêtes à l\'emploi', genere:new Date().toISOString(),
+          referentiels:'ISO/IEC 27001:2022 · NIS 2 (UE) 2022/2555 art. 21 · SOC 2 TSC',
+          note:'Modèles génériques personnalisés — validation juridique requise avant diffusion officielle.'},
+    entreprise:{raisonSociale:state.vars.company, referent:state.vars.author,
+      dateApplication:state.vars.date, prochaineRevue:state.vars.review},
+    variables:displayVars(state.selected[0]||''),
+    selection: sel.map(p=>({code:p.code, titre:p.title, iso:p.iso, soc2:p.soc, nis2:p.nis,
+      sections:p.sections.map(s=>s.h), variablesUtilisees:[...new Set(JSON.stringify(p.sections).match(/\{\{\w+\}\}/g)||[])]})),
+    couverture: computeCoverage().map(c=>({referentiel:c.label, couvertes:c.covered, total:c.total})),
+    corps: sel.map(p=>({code:p.code, titre:p.title,
+      texte: policyPaperText(p)}))
+  };
+  const name = `pack-politiques-${(state.vars.company||'entreprise').toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`;
+  download(name, JSON.stringify(dossier,null,2), 'application/json');
+}
+function policyPaperText(p){
+  const vars = displayVars(p.id);
+  const strip = s => interp(s, vars, false);
+  let out = p.title + '\n' + p.code + ' v1.0\n\n';
+  p.sections.forEach(s => {
+    out += s.h + '\n';
+    if(s.p) out += strip(s.p) + '\n\n';
+    if(s.list) s.list.forEach(li => out += ' - ' + strip(li) + '\n');
+    if(s.list) out += '\n';
+    if(s.table){
+      const rows = s.h.includes('classification') ? classRows(+vars.classlevels) : s.table.rows;
+      out += s.table.cols.join(' | ') + '\n';
+      rows.forEach(r => out += r.map(strip).join(' | ') + '\n');
+      out += '\n';
+    }
+  });
+  return out;
+}
+function exportCsv(){
+  const sel = POLICIES.filter(p=>state.selected.includes(p.id));
+  const rows = [['Code','Titre','Type','Réf. ISO 27001','Réf. SOC 2','Réf. NIS 2','Version','Date d\'application','Prochaine revue','Propriétaire','Statut']];
+  sel.forEach(p => rows.push([p.code, p.title, 'Politique', p.iso.join(' / '), p.soc.join(' / '), p.nis.map(x=>'art. 21.2 '+x).join(' / '), '1.0',
+    fmtDateFR(state.vars.date), fmtDateFR(state.vars.review), state.vars.author, 'Brouillon — à approuver']));
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  download('referentiel-documentaire-politiques.csv', csv, 'text/csv;charset=utf-8');
+}
+
+/* ═══════════════ INITIALISATION ═══════════════ */
+function bindVarFields(){
+  VAR_FIELDS.forEach(k => {
+    const el = $('#v_'+k); if(!el) return;
+    el.oninput = el.onchange = () => { state.vars[k] = el.value; save(); };
+  });
+}
+function bindNav(){
+  $$('[data-nav]').forEach(b => b.onclick = () => {
+    const dir = b.dataset.nav==='next'?'next':'prev';
+    const order = [0,1,2,3,4];
+    const idx = order.indexOf(state.screen);
+    const target = dir==='next' ? order[Math.min(idx+1, order.length-1)] : order[Math.max(idx-1,0)];
+    if(target>0 && !canGo(target)) return;
+    goTo(target);
+  });
+}
+function loadDemo(){
+  state = {screen:1, vars:{...DEMO.vars}, selected:[...DEMO.selected], overrides:{}, docIndex:0};
+  save(); goTo(1);
+  toast('Scénario « MediTrack » chargé — '+state.selected.length+' brouillons à relire');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bindVarFields(); bindNav();
+  /* injecte le bandeau d'info Module 2 dans l'écran 1 */
+  if(!$('#m2info')){
+    const card = $('#screen-1 .card');
+    const div = document.createElement('div');
+    div.id='m2info'; div.className='hint'; div.style.display='none';
+    card.appendChild(div);
+  }
+  $('#btnDemo').onclick = () => { if(hasData() && !confirm('Charger le scénario remplacera le pack en cours. Continuer ?')) return; loadDemo(); };
+  $('#startDemo').onclick = () => { if(hasData() && !confirm('Charger le scénario remplacera le pack en cours. Continuer ?')) return; loadDemo(); };
+  $('#startNew').onclick = () => { goTo(1); };
+  $('#startResume').onclick = () => { if(hasData()) goTo(Math.max(1, state.screen||1)); };
+  $('#btnReset').onclick = () => {
+    if(!confirm('Réinitialiser le pack ? Toutes les données locales seront effacées.')) return;
+    localStorage.removeItem(POLICY_STORAGE_KEY);
+    state = {screen:0, vars:{company:'', author:'', date:'', review:'', sso:'Google Workspace + SSO', mfa:'authentificateur TOTP et clé FIDO2',
+      ittool:'Jira Service Management', cmdb:'registre des actifs (Module 2)', cloud:'Microsoft Azure', classlevels:'3',
+      critdelay:'72', logretention:'12', secmail:'securite@entreprise.fr', oncall:'aucune astreinte formalisée', bkretention:'35', bktest:'S'},
+      selected:[], overrides:{}, docIndex:0};
+    renderAll(); toast('Pack réinitialisé');
+  };
+  $('#chipAll').onclick = () => selectAll(true);
+  $('#chipNone').onclick = () => selectAll(false);
+  $('#chipReco').onclick = () => { state.selected = recommended(); save(); renderCatalog(); updateSideScore(); toast('Sélection recommandée appliquée : '+state.selected.length+' politiques'); };
+  $('#docPrev').onclick = () => stepDoc(-1);
+  $('#docNext').onclick = () => stepDoc(1);
+  $('#btnEditVars').onclick = () => goTo(1);
+  $('#btnBackHome').onclick = () => { toast('Pack terminé — pensez à exporter les documents'); goTo(0); };
+
+  load();
+  renderAll();
+});
+</script>{% endraw %}
+</body>
+</html>

@@ -160,6 +160,22 @@ class TenantAuthTests(unittest.TestCase):
         self.assertEqual([item["name"] for item in controls_response.get_json()], ["Control A"])
         self.assertEqual(controls_response.get_json()[0]["status"], "Non démarré")
 
+    def test_policies_dashboard_is_authenticated_and_tenant_scoped(self):
+        response = self.client.get("/policies/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login", response.headers["Location"])
+
+        self.login()
+        response = self.client.get("/policies/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Tenant \xc2\xb7 tenant-a", response.data)
+        self.assertIn(b"data-tenant-id=\"tenant-a\"", response.data)
+        self.assertIn(b"TENANT_STORAGE_PREFIX + 'policies_state'", response.data)
+        self.assertIn(b"/iso27001", response.data)
+        self.assertIn(b"/rgpd/audit", response.data)
+        self.assertIn(b'name="csrf_token"', response.data)
+        self.assertIn(b"Brouillon", response.data)
+
     def test_iso_checklist_renders_catalog_filters_and_editor(self):
         self.login()
         response = self.client.get("/iso27001")
@@ -347,6 +363,7 @@ class TenantAuthTests(unittest.TestCase):
 
     def test_auditor_is_read_only(self):
         self.login("auditor@example.test")
+        self.assertEqual(self.client.get("/policies/").status_code, 403)
         dashboard = self.client.get("/iso27001")
         self.assertEqual(dashboard.status_code, 200)
         self.assertNotIn(b'id="catalog_id"', dashboard.data)
