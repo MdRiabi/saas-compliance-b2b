@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import time
@@ -219,17 +220,38 @@ def _upload_local_file_to_s3(tenant_id, local_path, content_type, payload):
     raise RuntimeError("S3 retry loop ended unexpectedly.")
 
 
+def _log_s3_export_result(report_type, result):
+    operation = re.sub(r"[^A-Za-z0-9_-]+", "_", str(report_type)).strip("_")[:64]
+    fields = {
+        "event": "storage.s3.export",
+        "operation": operation or "export",
+        "outcome": "success" if result.uploaded else "failure",
+    }
+    error_match = re.search(r"\(([A-Za-z0-9._-]{1,64})\)", result.error or "")
+    if error_match:
+        fields["error_code"] = error_match.group(1)
+    level = logging.INFO if result.uploaded else logging.ERROR
+    current_app.logger.log(level, "S3 export completed", extra=fields)
+    return result
+
+
 def upload_audit_report_to_s3(tenant_id, report_type, data):
     """Keep a unique local copy, then upload it with explicit server-side encryption."""
     local_path, local_error = _local_export_path(tenant_id, report_type, data)
     if local_error:
-        return AuditExportResult(False, None, None, local_error)
+        return _log_s3_export_result(
+            report_type,
+            AuditExportResult(False, None, None, local_error),
+        )
 
-    return _upload_local_file_to_s3(
-        tenant_id,
-        local_path,
-        "application/json",
-        local_path.read_bytes(),
+    return _log_s3_export_result(
+        report_type,
+        _upload_local_file_to_s3(
+            tenant_id,
+            local_path,
+            "application/json",
+            local_path.read_bytes(),
+        ),
     )
 
 
@@ -253,12 +275,18 @@ def upload_generated_export(tenant_id, report_type, file_format, content):
         content,
     )
     if local_error:
-        return AuditExportResult(False, local_path, None, local_error)
-    return _upload_local_file_to_s3(
-        tenant_id,
-        local_path,
-        content_type,
-        content,
+        return _log_s3_export_result(
+            report_type,
+            AuditExportResult(False, local_path, None, local_error),
+        )
+    return _log_s3_export_result(
+        report_type,
+        _upload_local_file_to_s3(
+            tenant_id,
+            local_path,
+            content_type,
+            content,
+        ),
     )
 
 

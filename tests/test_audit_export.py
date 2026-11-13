@@ -1,3 +1,6 @@
+import io
+import json
+import logging
 import tempfile
 import unittest
 from pathlib import Path
@@ -77,6 +80,43 @@ class AuditExportTests(unittest.TestCase):
         self.assertEqual(client.put_object.call_args.kwargs["Body"], content)
         self.assertEqual(client.put_object.call_args.kwargs["ContentType"], "text/csv; charset=utf-8")
         self.assertEqual(client.put_object.call_args.kwargs["ServerSideEncryption"], "AES256")
+
+    def test_s3_export_failure_is_structured_without_tenant_or_content(self):
+        client = Mock()
+        client.put_object.side_effect = ClientError(
+            {"Error": {"Code": "AccessDenied"}}, "PutObject"
+        )
+        logger = self.app.logger
+        original_handlers = logger.handlers
+        output = io.StringIO()
+        handler = logging.StreamHandler(output)
+        handler.setFormatter(original_handlers[0].formatter)
+        for log_filter in original_handlers[0].filters:
+            handler.addFilter(log_filter)
+        logger.handlers = [handler]
+
+        try:
+            with self.app.app_context(), patch(
+                "app.utils_aws.boto3.client", return_value=client
+            ):
+                result = upload_generated_export(
+                    "private-tenant",
+                    "rgpd_audit_browser_json",
+                    "json",
+                    b'{"sensitive":"report contents"}',
+                )
+        finally:
+            logger.handlers = original_handlers
+            handler.close()
+
+        self.assertFalse(result.uploaded)
+        log_entry = json.loads(output.getvalue())
+        self.assertEqual(log_entry["event"], "storage.s3.export")
+        self.assertEqual(log_entry["operation"], "rgpd_audit_browser_json")
+        self.assertEqual(log_entry["outcome"], "failure")
+        self.assertEqual(log_entry["error_code"], "AccessDenied")
+        self.assertNotIn("private-tenant", output.getvalue())
+        self.assertNotIn("sensitive", output.getvalue())
 
     def test_retryable_s3_failure_is_retried_and_access_denied_is_not(self):
         throttled = ClientError({"Error": {"Code": "SlowDown"}}, "PutObject")

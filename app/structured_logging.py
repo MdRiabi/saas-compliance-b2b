@@ -4,11 +4,19 @@ import sys
 from contextvars import ContextVar
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import SQLAlchemyError
+
 
 _request_id_context = ContextVar("request_id", default=None)
 _REQUEST_FIELDS = (
     "event",
     "request_id",
+    "action",
+    "outcome",
+    "operation",
+    "error_category",
+    "error_type",
+    "error_code",
     "http_method",
     "endpoint",
     "status_code",
@@ -30,7 +38,11 @@ class JsonLogFormatter(logging.Formatter):
             ).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": (
+                record.getMessage()
+                if hasattr(record, "event")
+                else "Framework log event"
+            ),
         }
         for field in _REQUEST_FIELDS:
             if hasattr(record, field):
@@ -44,6 +56,36 @@ def set_request_id(request_id):
 
 def reset_request_id(token):
     _request_id_context.reset(token)
+
+
+def log_authentication_event(logger, action, outcome):
+    level = (
+        logging.WARNING
+        if outcome in {"failure", "denied"}
+        else logging.INFO
+    )
+    logger.log(
+        level,
+        "Authentication event",
+        extra={
+            "event": "security.authentication",
+            "action": action,
+            "outcome": outcome,
+        },
+    )
+
+
+def log_unhandled_exception(sender, exception):
+    sender.logger.error(
+        "Unhandled application exception",
+        extra={
+            "event": "application.exception",
+            "error_category": (
+                "database" if isinstance(exception, SQLAlchemyError) else "application"
+            ),
+            "error_type": type(exception).__name__,
+        },
+    )
 
 
 def configure_app_logger(logger):

@@ -8,7 +8,17 @@ from urllib.parse import urlsplit
 import click
 import pyotp
 from dotenv import load_dotenv
-from flask import Flask, flash, g, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    current_app,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -58,6 +68,7 @@ def _consume_totp_code(user, code):
 
 def _finish_login(user, target=None, mfa_verified=False):
     from app.audit import add_audit_event
+    from app.structured_logging import log_authentication_event
 
     add_audit_event(
         tenant_id=user.tenant_id,
@@ -66,6 +77,7 @@ def _finish_login(user, target=None, mfa_verified=False):
         resource_type="authentication",
     )
     db.session.commit()
+    log_authentication_event(current_app.logger, "auth.login", "success")
     session.clear()
     login_user(user)
     if mfa_verified:
@@ -75,8 +87,12 @@ def _finish_login(user, target=None, mfa_verified=False):
 
 def create_app(config=None):
     app = Flask(__name__)
+    from flask import got_request_exception
+
     from app.structured_logging import (
         configure_app_logger,
+        log_authentication_event,
+        log_unhandled_exception,
         reset_request_id,
         set_request_id,
     )
@@ -105,6 +121,7 @@ def create_app(config=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = "login"
+    got_request_exception.connect(log_unhandled_exception, app, weak=False)
 
     @app.before_request
     def start_request_timer():
@@ -120,6 +137,27 @@ def create_app(config=None):
         )
         endpoint = request.endpoint or "unmatched"
         response.headers["X-Request-ID"] = g.request_id
+        if response.status_code == 403:
+            app.logger.warning(
+                "Authorization denied",
+                extra={
+                    "event": "security.authorization.denied",
+                    "outcome": "denied",
+                    "http_method": request.method,
+                    "endpoint": endpoint,
+                    "status_code": response.status_code,
+                },
+            )
+        if response.status_code >= 500:
+            app.logger.error(
+                "HTTP server error",
+                extra={
+                    "event": "application.http.error",
+                    "http_method": request.method,
+                    "endpoint": endpoint,
+                    "status_code": response.status_code,
+                },
+            )
         app.logger.info(
             "HTTP request completed",
             extra={
@@ -134,7 +172,7 @@ def create_app(config=None):
         return response
 
     @app.teardown_request
-    def clear_request_id_context(error):
+    def clear_request_id_context(_error):
         token = getattr(g, "request_id_context_token", None)
         if token is not None:
             reset_request_id(token)
@@ -154,6 +192,7 @@ def create_app(config=None):
             logout_user()
             session.clear()
             flash("Reconnectez-vous et terminez la vérification MFA.", "error")
+            log_authentication_event(app.logger, "auth.mfa.required", "denied")
             return redirect(url_for("login"))
 
     @app.route("/")
@@ -196,6 +235,7 @@ def create_app(config=None):
                 resource_type="authentication",
             )
             db.session.commit()
+            log_authentication_event(app.logger, "auth.login", "failure")
             flash("Identifiants invalides.", "error")
         return render_template(
             "login.html",
@@ -214,6 +254,7 @@ def create_app(config=None):
                 resource_type="authentication",
             )
             db.session.commit()
+            log_authentication_event(app.logger, "auth.logout", "success")
             logout_user()
         session.clear()
         return redirect(url_for("login"))
@@ -239,6 +280,7 @@ def create_app(config=None):
                     resource_type="authentication",
                 )
                 db.session.commit()
+                log_authentication_event(app.logger, "auth.mfa.enroll", "failure")
                 flash("Code MFA invalide. Réessayez.", "error")
             else:
                 user.mfa_enabled = True
@@ -249,6 +291,7 @@ def create_app(config=None):
                     resource_type="authentication",
                 )
                 db.session.commit()
+                log_authentication_event(app.logger, "auth.mfa.enroll", "success")
                 target = _safe_login_redirect(session.get("_mfa_next"))
                 return _finish_login(user, target, mfa_verified=True)
 
@@ -275,6 +318,7 @@ def create_app(config=None):
                     resource_type="authentication",
                 )
                 db.session.commit()
+                log_authentication_event(app.logger, "auth.mfa.verify", "failure")
                 flash("Code MFA invalide. Réessayez.", "error")
             else:
                 add_audit_event(
@@ -284,6 +328,7 @@ def create_app(config=None):
                     resource_type="authentication",
                 )
                 db.session.commit()
+                log_authentication_event(app.logger, "auth.mfa.verify", "success")
                 target = _safe_login_redirect(session.get("_mfa_next"))
                 return _finish_login(user, target, mfa_verified=True)
 
@@ -344,6 +389,7 @@ def create_app(config=None):
             resource_id=user.id,
         )
         db.session.commit()
+        log_authentication_event(app.logger, "auth.mfa.reset", "success")
         click.echo("MFA réinitialisée. L’administrateur devra la reconfigurer à sa prochaine connexion.")
 
     @app.cli.command("export-audit-logs")

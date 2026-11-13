@@ -1,3 +1,6 @@
+import io
+import json
+import logging
 import unittest
 from unittest.mock import patch
 
@@ -121,6 +124,41 @@ class TenantAuthTests(unittest.TestCase):
             self.assertEqual(known_attempt.result, "failure")
             self.assertEqual(known_attempt.user_email, "compliance@example.test")
             self.assertNotIn("wrong-password", known_attempt.action)
+
+    def test_failed_login_is_logged_without_account_or_password(self):
+        logger = self.app.logger
+        original_handlers = logger.handlers
+        output = io.StringIO()
+        handler = logging.StreamHandler(output)
+        handler.setFormatter(original_handlers[0].formatter)
+        for log_filter in original_handlers[0].filters:
+            handler.addFilter(log_filter)
+        logger.handlers = [handler]
+
+        try:
+            response = self.client.post(
+                "/login",
+                data={
+                    "email": "compliance@example.test",
+                    "password": "do-not-log-this-password",
+                },
+            )
+        finally:
+            logger.handlers = original_handlers
+            handler.close()
+
+        self.assertEqual(response.status_code, 200)
+        entries = [json.loads(line) for line in output.getvalue().splitlines()]
+        auth_failure = next(
+            entry
+            for entry in entries
+            if entry["event"] == "security.authentication"
+        )
+        self.assertEqual(auth_failure["action"], "auth.login")
+        self.assertEqual(auth_failure["outcome"], "failure")
+        self.assertEqual(auth_failure["request_id"], response.headers["X-Request-ID"])
+        self.assertNotIn("compliance@example.test", output.getvalue())
+        self.assertNotIn("do-not-log-this-password", output.getvalue())
 
     def test_login_redirect_accepts_only_local_relative_targets(self):
         safe_response = self.client.post(
