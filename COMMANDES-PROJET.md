@@ -235,7 +235,34 @@ Pour un échec d'export depuis le navigateur, ouvrir **F12 → Network**, sélec
 - `ExpiredToken` : redémarrer Gunicorn avec `AWS_SHARED_CREDENTIALS_FILE=/dev/null` comme indiqué ci-dessus ;
 - `Address already in use` : un processus écoute déjà sur le port ; ne pas lancer un second serveur.
 
-## 7. État de vérification constaté
+## 7. Installer les filtres métriques CloudWatch
+
+Prérequis : CloudWatch Agent doit envoyer `app.log` vers le groupe `/saas-compliance-b2b/app`, et ce groupe doit déjà exister. Depuis la racine du dépôt sur EC2, valider puis déployer le modèle :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation validate-template \
+  --template-body file://infra/cloudwatch-metric-filters.json
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation deploy \
+  --template-file infra/cloudwatch-metric-filters.json \
+  --stack-name saas-compliance-metric-filters \
+  --parameter-overrides LogGroupName=/saas-compliance-b2b/app
+```
+
+Vérifier les filtres installés et les métriques après les premières requêtes :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-metric-filters \
+  --log-group-name /saas-compliance-b2b/app \
+  --query 'metricFilters[].filterName' --output table
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch list-metrics \
+  --namespace SaasCompliance/Application --output table
+```
+
+Le modèle crée les filtres et les métriques, mais pas les alarmes ni les notifications. Les métriques sont listées après la réception de logs correspondants et peuvent prendre quelques minutes à apparaître.
+
+## 8. État de vérification constaté
 
 La capture S3 partagée montre trois objets sous `tenants/demo/reports/` : un export JSON du pack de politiques et des exports JSON/CSV de l'audit RGPD. Elle confirme que ces formats ont été archivés. Aucun PDF n'est visible sur cette capture ; pour le vérifier, lancer l'action d'impression du rapport dans l'interface, attendre le message de confirmation, puis rechercher un objet `.pdf` dans le même préfixe.
 

@@ -24,6 +24,37 @@ tail -n 50 app.log
 
 Les lignes doivent être des objets JSON individuels. Cette modification prépare l'application à la collecte par CloudWatch Agent; la configuration de l'agent, du groupe de journaux, de la rétention et des alarmes reste une étape AWS distincte.
 
+## Indicateurs CloudWatch
+
+Le modèle `infra/cloudwatch-metric-filters.json` transforme les journaux JSON du groupe CloudWatch en métriques sans appel CloudWatch depuis l'application et sans ajouter de permissions de publication au rôle IAM de Gunicorn. Il définit les métriques `Http5xxCount`, `AuthenticationFailureCount`, `AuthorizationDeniedCount`, `S3ExportFailureCount`, `DatabaseExceptionCount`, `RequestCount` et `RequestDurationMs`, dans l'espace `SaasCompliance/Application`. Aucune dimension tenant/utilisateur/route n'est ajoutée, afin d'éviter les métriques à forte cardinalité et toute donnée personnelle.
+
+Prérequis : CloudWatch Agent doit déjà envoyer `app.log` au groupe `/saas-compliance-b2b/app` (ou au nom fourni en paramètre), et ce groupe doit exister avant la création des filtres. Déployer depuis la racine du dépôt sur EC2 :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation validate-template \
+  --template-body file://infra/cloudwatch-metric-filters.json
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation deploy \
+  --template-file infra/cloudwatch-metric-filters.json \
+  --stack-name saas-compliance-metric-filters \
+  --parameter-overrides LogGroupName=/saas-compliance-b2b/app
+```
+
+Cette étape crée les filtres métriques, pas les alarmes ni les notifications. Le Learner Lab doit autoriser CloudFormation et CloudWatch Logs; si le groupe n'existe pas ou si les permissions sont insuffisantes, la commande doit être traitée comme un échec et non comme une validation.
+
+Vérifier l'installation et les métriques après génération d'événements correspondants :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-metric-filters \
+  --log-group-name /saas-compliance-b2b/app \
+  --query 'metricFilters[].filterName' --output table
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch list-metrics \
+  --namespace SaasCompliance/Application --output table
+```
+
+Les métriques CloudWatch n'apparaissent qu'après la réception d'un log correspondant; une nouvelle métrique peut prendre quelques minutes à être listée.
+
 ## Migration et export
 
 Après déploiement d’une version contenant une nouvelle migration, appliquer le schéma avec :

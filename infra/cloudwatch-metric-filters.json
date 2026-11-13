@@ -1,0 +1,126 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudWatch metric filters for SaaS compliance application logs.",
+  "Parameters": {
+    "LogGroupName": {
+      "Type": "String",
+      "Default": "/saas-compliance-b2b/app",
+      "Description": "CloudWatch Logs group receiving the application's JSON logs."
+    }
+  },
+  "Resources": {
+    "Http5xxMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"application.http.error\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "Http5xxCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "AuthenticationFailureMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"security.authentication\" && $.outcome = \"failure\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "AuthenticationFailureCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "AuthorizationDeniedMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"security.authorization.denied\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "AuthorizationDeniedCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "S3ExportFailureMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"storage.s3.export\" && $.outcome = \"failure\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "S3ExportFailureCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "DatabaseExceptionMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"application.exception\" && $.error_category = \"database\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "DatabaseExceptionCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "RequestCountMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"http.request.completed\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "RequestCount",
+            "MetricValue": "1"
+          }
+        ]
+      }
+    },
+    "RequestDurationMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "FilterPattern": "{ $.event = \"http.request.completed\" }",
+        "MetricTransformations": [
+          {
+            "MetricNamespace": "SaasCompliance/Application",
+            "MetricName": "RequestDurationMs",
+            "MetricValue": "$.duration_ms",
+            "Unit": "Milliseconds"
+          }
+        ]
+      }
+    }
+  }
+}
