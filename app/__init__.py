@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 import click
 import pyotp
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, g, redirect, render_template, request, session, url_for
 from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -74,6 +74,9 @@ def _finish_login(user, target=None, mfa_verified=False):
 
 def create_app(config=None):
     app = Flask(__name__)
+    from app.structured_logging import configure_app_logger
+
+    configure_app_logger(app.logger)
     app.config.from_mapping(
         SECRET_KEY=os.getenv("SECRET_KEY"),
         SQLALCHEMY_DATABASE_URI=os.getenv("DATABASE_URL", "sqlite:///saas_local.db"),
@@ -97,6 +100,30 @@ def create_app(config=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = "login"
+
+    @app.before_request
+    def start_request_timer():
+        g.request_started_at = time.perf_counter()
+
+    @app.after_request
+    def log_http_request(response):
+        duration_ms = round(
+            (time.perf_counter() - g.request_started_at) * 1000,
+            2,
+        )
+        endpoint = request.endpoint or "unmatched"
+        app.logger.info(
+            "HTTP request completed",
+            extra={
+                "event": "http.request.completed",
+                "http_method": request.method,
+                "endpoint": endpoint,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+            },
+        )
+        return response
+
     csrf.init_app(app)
 
     @app.before_request

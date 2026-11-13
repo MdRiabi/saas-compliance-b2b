@@ -8,6 +8,20 @@ Chaque entrée conserve l’horodatage UTC, le tenant lorsque celui-ci est connu
 
 Les modifications et évaluations de contrôles ISO 27001, les audits RGPD, la génération de politiques et les résultats des exports sont également tracés. Les mots de passe, jetons, clés, notes de preuve et contenus des politiques ne sont pas ajoutés aux événements d’audit. Les attributions de rôle via la commande CLI ne sont pas journalisées, conformément au périmètre retenu; la CLI ne fournit pas d’identité d’opérateur authentifiée.
 
+## Journaux applicatifs structurés
+
+L'application écrit une ligne JSON par requête HTTP terminée, au niveau `INFO`. Chaque ligne contient l'horodatage UTC, le niveau, le nom du journal, l'événement `http.request.completed`, la méthode HTTP, le nom de route Flask, le statut HTTP et la durée en millisecondes. Les événements sont écrits sur la sortie standard afin que Gunicorn puisse les transmettre à son journal; avec la commande de déploiement actuelle, ils se retrouvent dans `app.log`.
+
+Les URL complètes, chaînes de requête, en-têtes, adresses e-mail, corps des requêtes, cookies, jetons, mots de passe et codes MFA ne sont pas inclus dans ces lignes. Le nom de route est utilisé à la place du chemin afin d'éviter de journaliser des identifiants présents dans l'URL.
+
+Sur EC2, consulter les dernières lignes ainsi :
+
+```bash
+tail -n 50 app.log
+```
+
+Les lignes doivent être des objets JSON individuels. Cette modification prépare l'application à la collecte par CloudWatch Agent; la configuration de l'agent, du groupe de journaux, de la rétention et des alarmes reste une étape AWS distincte.
+
 ## Migration et export
 
 Après déploiement d’une version contenant une nouvelle migration, appliquer le schéma avec :
