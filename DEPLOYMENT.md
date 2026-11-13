@@ -34,6 +34,14 @@ python3 -m flask --app run.py db upgrade
 
 Ne pas publier ni partager ce fichier. `SESSION_COOKIE_SECURE=false` est nécessaire uniquement pour l'accès HTTP local via tunnel SSH ; la connexion entre le poste et EC2 est chiffrée par SSH. Lorsqu'un HTTPS public sera configuré, passer cette valeur à `true`.
 
+Sur une base neuve, créer ensuite le premier compte administrateur (la commande demande le mot de passe) :
+
+```bash
+python3 -m flask --app run.py create-user --email admin@example.com --tenant-id demo --role admin
+```
+
+Remplacer l'adresse et l'identifiant du tenant par vos valeurs. Cette étape est nécessaire : les migrations créent le schéma, pas les comptes utilisateur.
+
 ## 3. Remplacer le serveur Flask de développement
 
 Arrêter l'ancien processus `python3 run.py` après avoir vérifié son PID, puis démarrer Gunicorn :
