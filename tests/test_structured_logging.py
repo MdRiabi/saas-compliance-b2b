@@ -1,6 +1,7 @@
 import io
 import json
 import logging
+import re
 import unittest
 
 from app import create_app
@@ -21,17 +22,26 @@ class StructuredLoggingTests(unittest.TestCase):
         output = io.StringIO()
         handler = logging.StreamHandler(output)
         handler.setFormatter(original_handlers[0].formatter)
+        for log_filter in original_handlers[0].filters:
+            handler.addFilter(log_filter)
         logger.handlers = [handler]
 
         try:
-            response = app.test_client().get("/login?token=must-not-be-logged")
+            response = app.test_client().get(
+                "/login?token=must-not-be-logged",
+                headers={"X-Request-ID": "client-supplied-id"},
+            )
         finally:
             logger.handlers = original_handlers
             handler.close()
 
         self.assertEqual(response.status_code, 200)
+        request_id = response.headers["X-Request-ID"]
+        self.assertRegex(request_id, re.compile(r"^[0-9a-f]{32}$"))
+        self.assertNotEqual(request_id, "client-supplied-id")
         log_entry = json.loads(output.getvalue())
         self.assertEqual(log_entry["event"], "http.request.completed")
+        self.assertEqual(log_entry["request_id"], request_id)
         self.assertEqual(log_entry["http_method"], "GET")
         self.assertEqual(log_entry["endpoint"], "login")
         self.assertEqual(log_entry["status_code"], 200)
@@ -54,6 +64,8 @@ class StructuredLoggingTests(unittest.TestCase):
         output = io.StringIO()
         handler = logging.StreamHandler(output)
         handler.setFormatter(original_handlers[0].formatter)
+        for log_filter in original_handlers[0].filters:
+            handler.addFilter(log_filter)
         logger.handlers = [handler]
 
         try:
@@ -63,11 +75,54 @@ class StructuredLoggingTests(unittest.TestCase):
             handler.close()
 
         self.assertEqual(response.status_code, 404)
+        request_id = response.headers["X-Request-ID"]
         log_entry = json.loads(output.getvalue())
+        self.assertEqual(log_entry["request_id"], request_id)
         self.assertEqual(log_entry["endpoint"], "unmatched")
         self.assertEqual(log_entry["status_code"], 404)
         self.assertNotIn("/not-found", output.getvalue())
         self.assertNotIn("private-token", output.getvalue())
+
+    def test_application_logs_share_response_request_id(self):
+        app = create_app(
+            {
+                "TESTING": True,
+                "SECRET_KEY": "test-only-secret",
+                "SQLALCHEMY_DATABASE_URI": "sqlite://",
+                "WTF_CSRF_ENABLED": False,
+            }
+        )
+
+        @app.get("/_test/request-correlation")
+        def emit_application_log():
+            app.logger.info("Test application event", extra={"event": "test.application"})
+            return "ok"
+
+        logger = app.logger
+        original_handlers = logger.handlers
+        output = io.StringIO()
+        handler = logging.StreamHandler(output)
+        handler.setFormatter(original_handlers[0].formatter)
+        for log_filter in original_handlers[0].filters:
+            handler.addFilter(log_filter)
+        logger.handlers = [handler]
+
+        try:
+            response = app.test_client().get("/_test/request-correlation")
+        finally:
+            logger.handlers = original_handlers
+            handler.close()
+
+        self.assertEqual(response.status_code, 200)
+        request_id = response.headers["X-Request-ID"]
+        log_entries = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual(len(log_entries), 2)
+        self.assertEqual(
+            [entry["request_id"] for entry in log_entries],
+            [request_id, request_id],
+        )
+        self.assertEqual(log_entries[0]["event"], "test.application")
+        self.assertEqual(log_entries[1]["event"], "http.request.completed")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import hmac
 import os
 import re
 import time
+import uuid
 from urllib.parse import urlsplit
 
 import click
@@ -74,7 +75,11 @@ def _finish_login(user, target=None, mfa_verified=False):
 
 def create_app(config=None):
     app = Flask(__name__)
-    from app.structured_logging import configure_app_logger
+    from app.structured_logging import (
+        configure_app_logger,
+        reset_request_id,
+        set_request_id,
+    )
 
     configure_app_logger(app.logger)
     app.config.from_mapping(
@@ -104,6 +109,8 @@ def create_app(config=None):
     @app.before_request
     def start_request_timer():
         g.request_started_at = time.perf_counter()
+        g.request_id = uuid.uuid4().hex
+        g.request_id_context_token = set_request_id(g.request_id)
 
     @app.after_request
     def log_http_request(response):
@@ -112,10 +119,12 @@ def create_app(config=None):
             2,
         )
         endpoint = request.endpoint or "unmatched"
+        response.headers["X-Request-ID"] = g.request_id
         app.logger.info(
             "HTTP request completed",
             extra={
                 "event": "http.request.completed",
+                "request_id": g.request_id,
                 "http_method": request.method,
                 "endpoint": endpoint,
                 "status_code": response.status_code,
@@ -123,6 +132,12 @@ def create_app(config=None):
             },
         )
         return response
+
+    @app.teardown_request
+    def clear_request_id_context(error):
+        token = getattr(g, "request_id_context_token", None)
+        if token is not None:
+            reset_request_id(token)
 
     csrf.init_app(app)
 

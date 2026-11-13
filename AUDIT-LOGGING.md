@@ -10,9 +10,9 @@ Les modifications et évaluations de contrôles ISO 27001, les audits RGPD, la g
 
 ## Journaux applicatifs structurés
 
-L'application écrit une ligne JSON par requête HTTP terminée, au niveau `INFO`. Chaque ligne contient l'horodatage UTC, le niveau, le nom du journal, l'événement `http.request.completed`, la méthode HTTP, le nom de route Flask, le statut HTTP et la durée en millisecondes. Les événements sont écrits sur la sortie standard afin que Gunicorn puisse les transmettre à son journal; avec la commande de déploiement actuelle, ils se retrouvent dans `app.log`.
+L'application génère un identifiant aléatoire côté serveur pour chaque requête HTTP, même si le client fournit son propre en-tête `X-Request-ID`. L'identifiant est retourné dans l'en-tête de réponse `X-Request-ID` et ajouté aux journaux applicatifs émis pendant cette requête. Une ligne JSON de fin de requête contient l'horodatage UTC, le niveau, le nom du journal, l'événement `http.request.completed`, l'identifiant de requête, la méthode HTTP, le nom de route Flask, le statut HTTP et la durée en millisecondes. Les événements sont écrits sur la sortie standard afin que Gunicorn puisse les transmettre à son journal; avec la commande de déploiement actuelle, ils se retrouvent dans `app.log`.
 
-Les URL complètes, chaînes de requête, en-têtes, adresses e-mail, corps des requêtes, cookies, jetons, mots de passe et codes MFA ne sont pas inclus dans ces lignes. Le nom de route est utilisé à la place du chemin afin d'éviter de journaliser des identifiants présents dans l'URL.
+Les URL complètes, chaînes de requête, en-têtes autres que l'identifiant généré, adresses e-mail, corps des requêtes, cookies, jetons, mots de passe et codes MFA ne sont pas inclus dans ces lignes. Le nom de route est utilisé à la place du chemin afin d'éviter de journaliser des identifiants présents dans l'URL.
 
 Sur EC2, consulter les dernières lignes ainsi :
 
