@@ -369,10 +369,12 @@ def create_app(config=None):
     from app.routes_rgpd import rgpd_bp
     from app.routes_iso import iso_bp
     from app.routes_policies import policies_bp
+    from app.routes_exports import exports_bp
 
     app.register_blueprint(rgpd_bp)
     app.register_blueprint(iso_bp)
     app.register_blueprint(policies_bp)
+    app.register_blueprint(exports_bp)
 
     return app
 

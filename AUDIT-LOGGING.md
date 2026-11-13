@@ -18,6 +18,8 @@ python -m flask --app run.py db upgrade
 
 La commande `export-audit-logs` exporte les événements non encore inclus dans un export S3 réussi, séparément par tenant. Un échec ne fait pas avancer le curseur; les événements seront repris au prochain lancement. Chaque lot est d’abord copié dans `instance/audit_exports/<tenant>/reports/` sous un nom UTC unique, puis envoyé à S3. Les copies locales ne sont pas supprimées automatiquement. Sur les systèmes POSIX, les répertoires sont créés avec des permissions restreintes et les fichiers avec le mode `0600`; sur Windows, appliquer une ACL de répertoire adaptée.
 
+Les exports déclenchés dans les interfaces « Plan d’action & rapport d’audit » et « Couverture référentiels & export du pack » sont également archivés : JSON, CSV et PDF. JSON/CSV restent téléchargés par le navigateur; les rapports imprimables sont convertis en PDF texte côté serveur puis archivés. Le PDF n’est pas une reproduction pixel-identique de la mise en page imprimée. Chaque export est envoyé dans `tenants/<tenant>/reports/` et conservé localement sous `instance/audit_exports/<tenant>/reports/`. Le tenant est déterminé par la session authentifiée, jamais par les données envoyées par le navigateur. Les exports d’audit sont autorisés aux rôles admin, compliance et auditor; le pack de politiques est réservé aux rôles d’écriture. Les requêtes sont protégées par CSRF et limitées à 1 Mio par fichier. Un échec S3 est signalé dans l’interface et ne supprime pas la copie locale.
+
 Configurer les variables d’environnement sans enregistrer de clés AWS dans le code :
 
 ```text
@@ -35,6 +37,8 @@ python -m flask --app run.py verify-audit-s3
 ```
 
 Cette vérification nécessite les autorisations de lecture S3 correspondantes. Un refus ou une absence d’identifiants est affiché comme un échec, jamais comme une validation.
+
+Après un export depuis l’interface, vérifier dans la console S3 que le nouvel objet apparaît sous `tenants/<tenant>/reports/`. Le préfixe utilise l’identifiant du tenant de l’utilisateur connecté. Le bucket doit confirmer le chiffrement configuré dans `S3_SERVER_SIDE_ENCRYPTION`.
 
 ## Planification sur EC2
 

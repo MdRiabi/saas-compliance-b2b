@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Audit RGPD Automatisé — Module 1 · Plateforme Conformité PME</title>
 <style>
 :root{
@@ -1085,6 +1086,26 @@ function download(name, content, mime){
   toast('Fichier généré : '+name);
 }
 
+async function archiveExport(module, format, payload){
+  try{
+    const response = await fetch(`/exports/${module}/${format}`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-CSRFToken':document.querySelector('meta[name="csrf-token"]').content
+      },
+      body:JSON.stringify(payload)
+    });
+    const result = await response.json().catch(()=>({}));
+    if(!response.ok || !result.s3_storage || !result.s3_storage.uploaded_to_aws){
+      throw new Error(result.s3_storage?.error || result.error || `HTTP ${response.status}`);
+    }
+    toast('Copie de l’export enregistrée dans S3.');
+  }catch(error){
+    toast(`Archivage S3 échoué : ${error.message}`);
+  }
+}
+
 function exportJson(){
   const s = computeScores(), findings = buildFindings();
   const dossier = {
@@ -1097,7 +1118,9 @@ function exportJson(){
     constats:findings.map(f=>({critere:f.crit.id, priorite:f.prioLbl, constat:f.risk, recommandation:f.reco, horizon:f.horizon, responsable:f.owner})),
     plan_action:Object.entries(state.plan).map(([k,v])=>({action:k, ...v}))
   };
-  download(`audit-rgpd-${(state.company.name||'entreprise').toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`, JSON.stringify(dossier,null,2), 'application/json');
+  const content = JSON.stringify(dossier,null,2);
+  download(`audit-rgpd-${(state.company.name||'entreprise').toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`, content, 'application/json');
+  archiveExport('audit','json',{content});
 }
 
 function exportCsv(){
@@ -1109,6 +1132,7 @@ function exportCsv(){
   });
   const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');
   download('audit-rgpd-registre-et-plan.csv', csv, 'text/csv;charset=utf-8');
+  archiveExport('audit','csv',{content:csv});
 }
 
 /* ═══════════════ RAPPORT IMPRIMABLE ═══════════════ */
@@ -1156,6 +1180,7 @@ function buildPrintReport(){
 
   <p style="margin-top:14px;font-size:10.5px;color:#475569">Rapport généré automatiquement par le Module 1 — Audit RGPD automatisé, le ${fmtDate(new Date().toISOString().slice(0,10))}. Document de travail ne remplaçant pas l'appréciation d'un conseil juridique. Méthodologie : critères pondérés 1-3, barème C/PC/NC/NA, exclusion des critères non applicables du calcul.</p>`;
   $('#print-report').innerHTML = html;
+  archiveExport('audit','pdf',{html});
   toast('Rapport prêt — la fenêtre d\'impression s\'ouvre…');
   setTimeout(()=>window.print(), 400);
 }

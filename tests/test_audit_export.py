@@ -8,7 +8,12 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from app import create_app, db
 from app.audit_export import export_pending_audit_logs
 from app.models import AuditLog
-from app.utils_aws import AuditExportResult, upload_audit_report_to_s3, verify_s3_bucket_security
+from app.utils_aws import (
+    AuditExportResult,
+    upload_audit_report_to_s3,
+    upload_generated_export,
+    verify_s3_bucket_security,
+)
 
 
 class AuditExportTests(unittest.TestCase):
@@ -48,6 +53,29 @@ class AuditExportTests(unittest.TestCase):
         self.assertTrue(Path(first.local_path).is_file())
         self.assertTrue(Path(second.local_path).is_file())
         self.assertIn("tenants/tenant-a/reports/", first.s3_uri)
+        self.assertEqual(client.put_object.call_args.kwargs["ServerSideEncryption"], "AES256")
+
+    def test_generated_csv_export_keeps_local_copy_and_uploads_tenant_scoped_bytes(self):
+        client = Mock()
+        client.put_object.return_value = {"ServerSideEncryption": "AES256"}
+        content = b"\xef\xbb\xbfheader,value\r\n"
+
+        with self.app.app_context(), patch(
+            "app.utils_aws.boto3.client", return_value=client
+        ):
+            result = upload_generated_export(
+                "tenant-a",
+                "rgpd_audit_browser_csv",
+                "csv",
+                content,
+            )
+
+        self.assertTrue(result.uploaded)
+        self.assertTrue(Path(result.local_path).is_file())
+        self.assertEqual(Path(result.local_path).read_bytes(), content)
+        self.assertIn("tenants/tenant-a/reports/", result.s3_uri)
+        self.assertEqual(client.put_object.call_args.kwargs["Body"], content)
+        self.assertEqual(client.put_object.call_args.kwargs["ContentType"], "text/csv; charset=utf-8")
         self.assertEqual(client.put_object.call_args.kwargs["ServerSideEncryption"], "AES256")
 
     def test_retryable_s3_failure_is_retried_and_access_denied_is_not(self):

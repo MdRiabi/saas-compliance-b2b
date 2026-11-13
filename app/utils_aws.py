@@ -92,12 +92,42 @@ def _local_export_path(tenant_id, report_type, data):
     return target_path, None
 
 
-def upload_audit_report_to_s3(tenant_id, report_type, data):
-    """Keep a unique local copy, then upload it with explicit server-side encryption."""
-    local_path, local_error = _local_export_path(tenant_id, report_type, data)
-    if local_error:
-        return AuditExportResult(False, None, None, local_error)
+def _local_export_file_path(tenant_id, report_type, extension, content):
+    root = Path(
+        current_app.config.get("AUDIT_EXPORT_DIR")
+        or Path(current_app.instance_path) / "audit_exports"
+    )
+    tenant_component = _safe_path_component(tenant_id or "unassigned")
+    report_component = re.sub(r"[^A-Za-z0-9_-]+", "_", str(report_type)).strip("_")
+    report_component = report_component[:64] or "export"
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    filename = f"{report_component}_{timestamp}_{uuid.uuid4().hex}.{extension}"
+    tenant_dir = root / tenant_component
+    target_dir = tenant_dir / "reports"
+    target_path = target_dir / filename
 
+    created = False
+    try:
+        tenant_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        target_dir.mkdir(mode=0o700, exist_ok=True)
+        if os.name != "nt":
+            tenant_dir.chmod(0o700)
+            target_dir.chmod(0o700)
+        descriptor = os.open(
+            target_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+        )
+        created = True
+        with os.fdopen(descriptor, "wb") as export_file:
+            export_file.write(content)
+    except OSError as error:
+        local_path = str(target_path) if created and target_path.is_file() else None
+        return local_path, f"Local archive failed ({type(error).__name__})."
+    return target_path, None
+
+
+def _upload_local_file_to_s3(tenant_id, local_path, content_type, payload):
     bucket_name = current_app.config.get("S3_BUCKET_NAME") or os.getenv("S3_BUCKET_NAME")
     if not bucket_name:
         return AuditExportResult(
@@ -131,8 +161,8 @@ def upload_audit_report_to_s3(tenant_id, report_type, data):
     request = {
         "Bucket": bucket_name,
         "Key": key,
-        "Body": local_path.read_bytes(),
-        "ContentType": "application/json",
+        "Body": payload,
+        "ContentType": content_type,
         "ServerSideEncryption": encryption,
     }
     if encryption == "aws:kms":
@@ -187,6 +217,49 @@ def upload_audit_report_to_s3(tenant_id, report_type, data):
         time.sleep(0.25 * (2**attempt))
 
     raise RuntimeError("S3 retry loop ended unexpectedly.")
+
+
+def upload_audit_report_to_s3(tenant_id, report_type, data):
+    """Keep a unique local copy, then upload it with explicit server-side encryption."""
+    local_path, local_error = _local_export_path(tenant_id, report_type, data)
+    if local_error:
+        return AuditExportResult(False, None, None, local_error)
+
+    return _upload_local_file_to_s3(
+        tenant_id,
+        local_path,
+        "application/json",
+        local_path.read_bytes(),
+    )
+
+
+def upload_generated_export(tenant_id, report_type, file_format, content):
+    """Keep a private local copy and upload a generated browser export to S3."""
+    formats = {
+        "json": ("json", "application/json"),
+        "csv": ("csv", "text/csv; charset=utf-8"),
+        "pdf": ("pdf", "application/pdf"),
+    }
+    if file_format not in formats or not re.fullmatch(r"[a-z0-9_-]{1,64}", report_type):
+        raise ValueError("Unsupported export format or report type.")
+    if not isinstance(content, bytes):
+        raise TypeError("Export content must be bytes.")
+
+    extension, content_type = formats[file_format]
+    local_path, local_error = _local_export_file_path(
+        tenant_id,
+        report_type,
+        extension,
+        content,
+    )
+    if local_error:
+        return AuditExportResult(False, local_path, None, local_error)
+    return _upload_local_file_to_s3(
+        tenant_id,
+        local_path,
+        content_type,
+        content,
+    )
 
 
 def verify_s3_bucket_security():

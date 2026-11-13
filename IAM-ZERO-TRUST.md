@@ -27,7 +27,11 @@ La clé TOTP est conservée dans la base de l'application et n'est jamais écrit
 
 Sur EC2, utiliser un **rôle IAM attaché à un instance profile**. Ne pas stocker de clés d'accès IAM dans le dépôt, `.env`, le crontab ou le code. boto3 utilise alors la chaîne d'identifiants de l'instance.
 
-Le Learner Lab ne permet pas actuellement de créer et d'attacher ce rôle à l'instance. La politique ci-dessous est donc une **cible d'architecture**, pas un contrôle déployé. Elle correspond aux appels actuellement effectués par l'application sur le bucket `saas-audit-reports-sec-2026-unique` : `PutObject` sous `tenants/*/reports/*` avec SSE-S3, et lectures des paramètres de sécurité du bucket.
+Sur l'instance vérifiée, le profil `LabInstanceProfile` est attaché et `aws sts get-caller-identity` retourne une identité assumée `LabRole`. L'accès S3 de l'application a également été vérifié avec succès. Cela confirme l'utilisation du rôle d'instance, mais pas que ses permissions respectent le moindre privilège : la politique gérée par le Learner Lab doit encore être examinée et peut être plus large que nécessaire.
+
+Sur cette instance, `~/.aws/credentials` contient aussi d'anciens identifiants temporaires expirés, qui prennent priorité sur le rôle EC2. Pour les commandes de vérification ci-dessous, `AWS_SHARED_CREDENTIALS_FILE=/dev/null` permet d'ignorer ce fichier et d'utiliser le rôle d'instance. Ne copiez pas de clés AWS dans `.env`.
+
+La politique ci-dessous reste la **cible de moindre privilège** pour un rôle dédié à l'application. Elle correspond aux appels actuellement effectués sur le bucket `saas-audit-reports-sec-2026-unique` : `PutObject` sous `tenants/*/reports/*` avec SSE-S3, et lectures des paramètres de sécurité du bucket. Ne pas présenter cette politique cible comme celle effectivement attachée à `LabRole` sans avoir vérifié les politiques du rôle.
 
 ```json
 {
@@ -60,7 +64,7 @@ Le Learner Lab ne permet pas actuellement de créer et d'attacher ce rôle à l'
 
 Cette politique n'accorde ni lecture de rapports, ni suppression, ni liste du bucket, ni modification de sa politique ou de ses paramètres. L'application utilise actuellement `AES256` par défaut. Si SSE-KMS est activé, adapter explicitement la condition et accorder au rôle uniquement les actions KMS requises sur la clé choisie.
 
-Le rôle cible doit avoir une relation de confiance permettant à EC2 de l'assumer :
+Un rôle dédié à l'application doit avoir une relation de confiance permettant à EC2 de l'assumer :
 
 ```json
 {
@@ -77,19 +81,68 @@ Le rôle cible doit avoir une relation de confiance permettant à EC2 de l'assum
 }
 ```
 
-Il serait attaché à l'instance via un instance profile. Comme le Lab ne permet pas cette opération, conserver rôle et politique comme **architecture cible** et préciser cette limite dans le rapport ; ne pas remplacer le rôle par des identifiants administrateur permanents.
+Un rôle dédié serait attaché à l'instance via un instance profile. Si le Lab ne permet pas de créer une politique dédiée, conserver la politique ci-dessus comme **architecture cible** et signaler que le moindre privilège n'est pas démontré ; ne pas remplacer le rôle par des identifiants administrateur permanents.
 
 ## Vérifications à effectuer
 
-Après attachement du rôle, dans un environnement qui l'autorise :
+Les vérifications ne se font pas toutes au même endroit : la console AWS sert à contrôler la configuration de l'instance, le terminal SSH sert à tester l'instance et son identité, et le navigateur sert à tester les rôles applicatifs.
+
+### 1. Contrôler les ports dans la console AWS
+
+Dans AWS Console : **EC2 → Instances → sélectionner l'instance → onglet Security → cliquer sur le Security group → Inbound rules**.
+
+Vérifier que :
+
+- SSH TCP `22` est autorisé uniquement depuis votre adresse IP d'administration (`My IP`) ;
+- il n'existe aucune règle entrante TCP `5000` ou `8000`.
+
+Le port `5000` est utilisé uniquement sur votre ordinateur par le tunnel SSH. Gunicorn écoute sur `127.0.0.1:8000` dans EC2 ; aucun de ces deux ports ne doit être ouvert au public.
+
+### 2. Vérifier le serveur depuis le terminal SSH d'EC2
+
+Connectez-vous à EC2 en SSH, activez l'environnement virtuel, puis exécutez :
 
 ```bash
-aws sts get-caller-identity
-python3 -m flask --app run.py verify-audit-s3
-python3 -m flask --app run.py export-audit-logs
+ss -ltn
+curl -I http://127.0.0.1:8000/login
 ```
 
-La première commande doit indiquer une identité assumée par le rôle EC2. La vérification S3 doit confirmer le blocage public et le chiffrement par défaut. L'export doit réussir sans clés statiques. Conserver des captures des résultats et retirer de celles-ci toute information de compte qui n'est pas nécessaire au rapport. Dans le Learner Lab actuel, cette vérification de rôle ne peut pas être présentée comme réalisée.
+Dans la sortie de `ss`, Gunicorn doit écouter sur `127.0.0.1:8000`, et non `0.0.0.0:8000`. `curl` doit recevoir une réponse HTTP (généralement `200` ou une redirection `302`).
+
+### 3. Vérifier l'identité et les permissions AWS
+
+Dans **EC2 → Instances → sélectionner l'instance → onglet Security**, regarder le champ **IAM role**. Si un rôle est affiché, ouvrez-le dans IAM et vérifiez qu'il ne dispose que des permissions nécessaires décrites plus haut.
+
+Après connexion SSH à EC2, exécutez :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws sts get-caller-identity
+```
+
+Le résultat doit montrer une identité de rôle assumée par EC2. Si aucun rôle n'est attaché, si la commande échoue faute de permissions, ou si le Learner Lab interdit cette configuration, **ne créez pas de clés IAM permanentes pour contourner le blocage** : notez ce contrôle comme non réalisé et indiquez cette limite dans le rapport.
+
+### 4. Vérifier la sécurité et l'export S3
+
+Toujours depuis le terminal SSH d'EC2, à la racine du dépôt et avec l'environnement virtuel activé :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null python3 -m flask --app run.py verify-audit-s3
+AWS_SHARED_CREDENTIALS_FILE=/dev/null python3 -m flask --app run.py export-audit-logs
+```
+
+La commande `verify-audit-s3` doit confirmer le blocage de l'accès public et le chiffrement par défaut. `export-audit-logs` doit indiquer que les événements ont été envoyés vers S3 ; s'il n'y a aucun événement à exporter, connectez-vous à l'application pour en générer un, puis relancez la commande. Ces vérifications doivent réussir sans clés AWS statiques dans `.env`.
+
+Lors de la vérification de l'instance de démonstration, l'identité assumée `LabRole` a été confirmée, 11 événements ont été exportés vers S3, et `verify-audit-s3` a retourné un blocage public actif, une politique non publique et un chiffrement par défaut `AES256`. Ces résultats valident le chemin d'accès et les contrôles du bucket, mais pas le moindre privilège des politiques attachées à `LabRole`.
+
+### 5. Vérifier les rôles de l'application
+
+Dans le navigateur, connectez-vous avec des comptes de test de rôles différents. Vérifiez qu'un compte `auditor` peut consulter les données mais ne peut pas les modifier, et que les données d'un tenant ne sont pas visibles depuis un autre tenant. Les tests automatisés du dépôt couvrent également ces contrôles :
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Conservez les résultats utiles pour le rapport, mais masquez les adresses e-mail, codes MFA, clés, identifiants de compte AWS et autres informations sensibles dans les captures.
 
 ## MFA et contrôles complémentaires
 

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Politiques de sécurité · SecureFrame</title>
 <style>
 :root{
@@ -1079,12 +1080,33 @@ function download(name, content, mime){
   a.download = name; a.click(); URL.revokeObjectURL(a.href);
   toast('Fichier généré : '+name);
 }
+async function archiveExport(module, format, payload){
+  try{
+    const response = await fetch(`/exports/${module}/${format}`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-CSRFToken':document.querySelector('meta[name="csrf-token"]').content
+      },
+      body:JSON.stringify(payload)
+    });
+    const result = await response.json().catch(()=>({}));
+    if(!response.ok || !result.s3_storage || !result.s3_storage.uploaded_to_aws){
+      throw new Error(result.s3_storage?.error || result.error || `HTTP ${response.status}`);
+    }
+    toast('Copie de l’export enregistrée dans S3.');
+  }catch(error){
+    toast(`Archivage S3 échoué : ${error.message}`);
+  }
+}
 function printPack(onlyIds){
   const ids = onlyIds || state.selected;
-  $('#print-pack').innerHTML = ids.map(id => {
+  const html = ids.map(id => {
     const pol = POLICIES.find(p=>p.id===id);
     return '<div class="paper">' + policyPaperHTML(pol, displayVars(pol.id), false, true) + '</div>';
   }).join('');
+  $('#print-pack').innerHTML = html;
+  archiveExport('policies','pdf',{html});
   toast(ids.length>1 ? `Pack prêt — ${ids.length} documents envoyés à l'impression` : 'Document envoyé à l\'impression');
   setTimeout(()=>window.print(), 350);
 }
@@ -1104,7 +1126,9 @@ function exportJson(){
       texte: policyPaperText(p)}))
   };
   const name = `pack-politiques-${(state.vars.company||'entreprise').toLowerCase().replace(/[^a-z0-9]+/g,'-')}.json`;
-  download(name, JSON.stringify(dossier,null,2), 'application/json');
+  const content = JSON.stringify(dossier,null,2);
+  download(name, content, 'application/json');
+  archiveExport('policies','json',{content});
 }
 function policyPaperText(p){
   const vars = displayVars(p.id);
@@ -1131,6 +1155,7 @@ function exportCsv(){
     fmtDateFR(state.vars.date), fmtDateFR(state.vars.review), state.vars.author, 'Brouillon — à approuver']));
   const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');
   download('referentiel-documentaire-politiques.csv', csv, 'text/csv;charset=utf-8');
+  archiveExport('policies','csv',{content:csv});
 }
 
 /* ═══════════════ INITIALISATION ═══════════════ */
