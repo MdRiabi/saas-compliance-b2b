@@ -23,6 +23,8 @@ from flask_login import LoginManager, current_user, login_user, logout_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 load_dotenv()
 
@@ -178,6 +180,28 @@ def create_app(config=None):
             reset_request_id(token)
 
     csrf.init_app(app)
+
+    @app.get("/health/live")
+    def health_live():
+        return {"status": "alive"}, 200
+
+    @app.get("/health/ready")
+    def health_ready():
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+        except SQLAlchemyError as error:
+            app.logger.error(
+                "Application readiness check failed",
+                extra={
+                    "event": "application.health.check",
+                    "outcome": "failure",
+                    "error_category": "database",
+                    "error_type": type(error).__name__,
+                },
+            )
+            return {"status": "unavailable"}, 503
+        return {"status": "ready"}, 200
 
     @app.before_request
     def require_admin_mfa():

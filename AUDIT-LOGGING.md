@@ -14,6 +14,8 @@ L'application génère un identifiant aléatoire côté serveur pour chaque requ
 
 Les événements de sécurité et d'exploitation incluent les échecs/réussites d'authentification et MFA, les refus HTTP 403, les réponses HTTP 5xx, les exceptions applicatives (catégorie et type seulement) et les réussites/échecs d'export S3 (opération et code d'erreur AWS lorsque disponible). Ces événements partagent le même identifiant de requête que la réponse et les autres logs produits pendant la requête.
 
+Les endpoints `GET /health/live` et `GET /health/ready` permettent de vérifier respectivement la réponse du processus et la disponibilité de la base de données. Le contrôle de disponibilité exécute `SELECT 1`; en cas d'erreur SQLAlchemy, il renvoie uniquement un statut générique HTTP 503 et journalise le type d'erreur, sans détails de connexion. Cette réponse 5xx est prise en compte par le filtre CloudWatch existant. S3 n'est pas interrogé par le contrôle de disponibilité.
+
 Les URL complètes, chaînes de requête, en-têtes autres que l'identifiant généré, adresses e-mail, corps des requêtes, cookies, jetons, mots de passe et codes MFA ne sont pas inclus dans ces lignes. Le nom de route est utilisé à la place du chemin afin d'éviter de journaliser des identifiants présents dans l'URL.
 
 Sur EC2, consulter les dernières lignes ainsi :

@@ -220,6 +220,17 @@ Lancer les tests automatisés après une modification du code :
 python3 -m unittest discover -s tests
 ```
 
+### Vérifier la santé de l'application
+
+Depuis EC2, vérifier que le processus Flask répond et que la base de données est disponible :
+
+```bash
+curl --fail http://127.0.0.1:8000/health/live
+curl --fail http://127.0.0.1:8000/health/ready
+```
+
+Les réponses attendues sont `{"status":"alive"}` et `{"status":"ready"}`. `/health/live` vérifie uniquement que l'application répond; `/health/ready` exécute une requête simple sur la base de données et renvoie HTTP 503 si elle est indisponible, sans exposer de détails internes. Une réponse 503 est aussi comptabilisée par le filtre métrique HTTP 5xx CloudWatch. Ces routes ne vérifient pas S3.
+
 Lister les routes d'archivage :
 
 ```bash
