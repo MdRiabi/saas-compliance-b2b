@@ -1,0 +1,21 @@
+{
+  "agent": {
+    "run_as_user": "root"
+  },
+  "logs": {
+    "force_flush_interval": 5,
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/home/ec2-user/saas-compliance-b2b/app.log",
+            "log_group_name": "/saas-compliance-b2b/app",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC",
+            "timestamp_format": "%Y-%m-%dT%H:%M:%S.%fZ"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Trafic et erreurs HTTP",
+        "period": 300,
+        "metrics": [
+          [
+            "SaasCompliance/Application",
+            "RequestCount",
+            {
+              "stat": "Sum",
+              "label": "Requêtes"
+            }
+          ],
+          [
+            "SaasCompliance/Application",
+            "Http5xxCount",
+            {
+              "stat": "Sum",
+              "label": "Erreurs HTTP 5xx"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Sécurité : authentifications et refus",
+        "period": 300,
+        "metrics": [
+          [
+            "SaasCompliance/Application",
+            "AuthenticationFailureCount",
+            {
+              "stat": "Sum",
+              "label": "Échecs authentification/MFA"
+            }
+          ],
+          [
+            "SaasCompliance/Application",
+            "AuthorizationDeniedCount",
+            {
+              "stat": "Sum",
+              "label": "Refus d'accès"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Échecs des services",
+        "period": 300,
+        "metrics": [
+          [
+            "SaasCompliance/Application",
+            "S3ExportFailureCount",
+            {
+              "stat": "Sum",
+              "label": "Échecs export S3"
+            }
+          ],
+          [
+            "SaasCompliance/Application",
+            "DatabaseExceptionCount",
+            {
+              "stat": "Sum",
+              "label": "Erreurs base de données"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Durée moyenne des requêtes",
+        "period": 300,
+        "metrics": [
+          [
+            "SaasCompliance/Application",
+            "RequestDurationMs",
+            {
+              "stat": "Average",
+              "label": "Moyenne (ms)"
+            }
+          ]
+        ],
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Seuil d'alarme : 2000 ms",
+              "value": 2000
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

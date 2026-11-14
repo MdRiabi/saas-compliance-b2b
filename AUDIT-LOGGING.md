@@ -22,13 +22,17 @@ Sur EC2, consulter les dernières lignes ainsi :
 tail -n 50 app.log
 ```
 
-Les lignes doivent être des objets JSON individuels. Cette modification prépare l'application à la collecte par CloudWatch Agent; la configuration de l'agent, du groupe de journaux, de la rétention et des alarmes reste une étape AWS distincte.
+Les lignes doivent être des objets JSON individuels. La collecte par CloudWatch Agent et le déploiement des ressources AWS restent à effectuer.
 
-## Indicateurs CloudWatch
+## Indicateurs, dashboard et alarmes CloudWatch
 
-Le modèle `infra/cloudwatch-metric-filters.json` transforme les journaux JSON du groupe CloudWatch en métriques sans appel CloudWatch depuis l'application et sans ajouter de permissions de publication au rôle IAM de Gunicorn. Il définit les métriques `Http5xxCount`, `AuthenticationFailureCount`, `AuthorizationDeniedCount`, `S3ExportFailureCount`, `DatabaseExceptionCount`, `RequestCount` et `RequestDurationMs`, dans l'espace `SaasCompliance/Application`. Aucune dimension tenant/utilisateur/route n'est ajoutée, afin d'éviter les métriques à forte cardinalité et toute donnée personnelle.
+Le modèle `infra/cloudwatch-metric-filters.json` crée le groupe `/saas-compliance-b2b/app` avec une rétention de 30 jours, ses filtres métriques, six alarmes et un topic SNS. Les métriques `Http5xxCount`, `AuthenticationFailureCount`, `AuthorizationDeniedCount`, `S3ExportFailureCount`, `DatabaseExceptionCount`, `RequestCount` et `RequestDurationMs` sont dans l'espace `SaasCompliance/Application`. Aucune dimension tenant/utilisateur/route n'est ajoutée, afin d'éviter les métriques à forte cardinalité et les données personnelles.
 
-Prérequis : CloudWatch Agent doit déjà envoyer `app.log` au groupe `/saas-compliance-b2b/app` (ou au nom fourni en paramètre), et ce groupe doit exister avant la création des filtres. Déployer depuis la racine du dépôt sur EC2 :
+Les seuils initiaux sont : au moins un 5xx, échec S3 ou exception DB sur 5 minutes; au moins cinq échecs d'authentification ou dix refus sur 5 minutes; durée moyenne supérieure à 2000 ms pendant deux périodes consécutives de 5 minutes. Les périodes sans données ne déclenchent pas d'alarme.
+
+Le rôle EC2 nécessite au minimum les actions de flux de logs (`logs:CreateLogStream`, `logs:PutLogEvents` et généralement `logs:DescribeLogStreams`) sur ce groupe. Comme le groupe est créé par CloudFormation, l'agent n'a pas besoin de `logs:CreateLogGroup`. Le déploiement du modèle demande séparément des autorisations CloudFormation, CloudWatch Logs, CloudWatch Alarms et SNS. Les deux autorisations de flux seules ne suffisent donc pas à créer les ressources. Si le rôle du Lab ne le permet pas, dans la console AWS en région `us-east-1`, ouvrir **CloudFormation → Create stack → With new resources**, téléverser ce modèle et choisir le nom `saas-compliance-supervision`. Si la console refuse aussi, demander l'autorisation à l'administrateur du Lab; ne pas ajouter de clés AWS dans l'application.
+
+Depuis la racine du dépôt sur EC2, si l'identité AWS peut créer ces ressources :
 
 ```bash
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation validate-template \
@@ -36,13 +40,30 @@ AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation validate-template \
 
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation deploy \
   --template-file infra/cloudwatch-metric-filters.json \
-  --stack-name saas-compliance-metric-filters \
-  --parameter-overrides LogGroupName=/saas-compliance-b2b/app
+  --stack-name saas-compliance-supervision
 ```
 
-Cette étape crée les filtres métriques, pas les alarmes ni les notifications. Le Learner Lab doit autoriser CloudFormation et CloudWatch Logs; si le groupe n'existe pas ou si les permissions sont insuffisantes, la commande doit être traitée comme un échec et non comme une validation.
+Le groupe de logs est créé par le modèle. Ensuite, installer et configurer CloudWatch Agent sur Amazon Linux :
 
-Vérifier l'installation et les métriques après génération d'événements correspondants :
+```bash
+sudo dnf install -y amazon-cloudwatch-agent
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 \
+  -c file:/home/ec2-user/saas-compliance-b2b/infra/cloudwatch-agent-config.json -s
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status
+```
+
+Le fichier `infra/cloudwatch-agent-config.json` collecte `app.log` dans le groupe ci-dessus, avec un flux par instance. Pour remplir le dashboard `saas-audit-dash`, depuis la racine du dépôt :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch put-dashboard \
+  --dashboard-name saas-audit-dash \
+  --dashboard-body file://infra/cloudwatch-dashboard.json
+```
+
+Récupérer l'ARN du topic SNS dans les sorties de la pile CloudFormation, puis créer une subscription e-mail dans **SNS → Topics → topic → Create subscription**. Confirmer le message reçu; l'e-mail n'est pas nécessaire dans le code ou le dépôt.
+
+Vérifier les ressources et les métriques après réception d'événements correspondants :
 
 ```bash
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-metric-filters \
@@ -51,9 +72,12 @@ AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-metric-filters \
 
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch list-metrics \
   --namespace SaasCompliance/Application --output table
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch describe-alarms \
+  --alarm-name-prefix SaasCompliance-
 ```
 
-Les métriques CloudWatch n'apparaissent qu'après la réception d'un log correspondant; une nouvelle métrique peut prendre quelques minutes à être listée.
+Les métriques n'apparaissent qu'après qu'un événement correspondant arrive dans CloudWatch Logs; la première apparition peut prendre quelques minutes. Le dashboard est mis à jour avec `put-dashboard` et le topic SNS n'envoie aucun e-mail avant la confirmation de la subscription.
 
 ## Migration et export
 

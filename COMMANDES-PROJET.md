@@ -235,9 +235,11 @@ Pour un échec d'export depuis le navigateur, ouvrir **F12 → Network**, sélec
 - `ExpiredToken` : redémarrer Gunicorn avec `AWS_SHARED_CREDENTIALS_FILE=/dev/null` comme indiqué ci-dessus ;
 - `Address already in use` : un processus écoute déjà sur le port ; ne pas lancer un second serveur.
 
-## 7. Installer les filtres métriques CloudWatch
+## 7. Configurer CloudWatch, indicateurs et alertes
 
-Prérequis : CloudWatch Agent doit envoyer `app.log` vers le groupe `/saas-compliance-b2b/app`, et ce groupe doit déjà exister. Depuis la racine du dépôt sur EC2, valider puis déployer le modèle :
+Le rôle EC2 doit pouvoir créer un flux et publier ses événements dans le groupe (`logs:CreateLogStream`, `logs:PutLogEvents`, généralement `logs:DescribeLogStreams`). Le modèle crée le groupe et demande également les permissions CloudFormation, CloudWatch Logs, CloudWatch Alarms et SNS. Les deux permissions de flux seules ne suffisent pas pour déployer le modèle. Si la commande CLI est refusée, essayez dans la console AWS en région `us-east-1` : **CloudFormation → Create stack → With new resources**, puis téléversez le modèle. Si la console refuse aussi, demandez l'aide de l'administrateur du Lab; ne créez pas de clés permanentes.
+
+Depuis la racine du dépôt sur EC2, valider puis déployer le modèle, qui crée le groupe avec 30 jours de rétention, les filtres, six alarmes et le topic SNS :
 
 ```bash
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation validate-template \
@@ -245,11 +247,34 @@ AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation validate-template \
 
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation deploy \
   --template-file infra/cloudwatch-metric-filters.json \
-  --stack-name saas-compliance-metric-filters \
-  --parameter-overrides LogGroupName=/saas-compliance-b2b/app
+  --stack-name saas-compliance-supervision
 ```
 
-Vérifier les filtres installés et les métriques après les premières requêtes :
+Installer l'agent sur Amazon Linux et lui fournir la configuration du dépôt :
+
+```bash
+sudo dnf install -y amazon-cloudwatch-agent
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 \
+  -c file:/home/ec2-user/saas-compliance-b2b/infra/cloudwatch-agent-config.json -s
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a status
+```
+
+Mettre à jour le dashboard existant et récupérer l'ARN SNS :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch put-dashboard \
+  --dashboard-name saas-audit-dash \
+  --dashboard-body file://infra/cloudwatch-dashboard.json
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudformation describe-stacks \
+  --stack-name saas-compliance-supervision \
+  --query 'Stacks[0].Outputs' --output table
+```
+
+Créer ensuite une subscription e-mail depuis **SNS → Topics → topic indiqué par l'ARN → Create subscription** et confirmer le lien reçu par e-mail. Ne mettez pas votre adresse e-mail dans le dépôt.
+
+Vérifier les filtres, métriques et alarmes :
 
 ```bash
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-metric-filters \
@@ -258,9 +283,12 @@ AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-metric-filters \
 
 AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch list-metrics \
   --namespace SaasCompliance/Application --output table
+
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws cloudwatch describe-alarms \
+  --alarm-name-prefix SaasCompliance-
 ```
 
-Le modèle crée les filtres et les métriques, mais pas les alarmes ni les notifications. Les métriques sont listées après la réception de logs correspondants et peuvent prendre quelques minutes à apparaître.
+Les métriques ne deviennent visibles qu'après l'arrivée de logs correspondants; leur première apparition peut prendre quelques minutes. Le modèle utilise les seuils initiaux décrits dans `AUDIT-LOGGING.md`; aucune alarme ne se déclenche sur des périodes sans données.
 
 ## 8. État de vérification constaté
 

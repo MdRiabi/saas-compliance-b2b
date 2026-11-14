@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "CloudWatch metric filters for SaaS compliance application logs.",
+  "Description": "CloudWatch log collection target, metrics, alarms, and SNS notifications for the SaaS compliance application.",
   "Parameters": {
     "LogGroupName": {
       "Type": "String",
@@ -9,8 +9,24 @@
     }
   },
   "Resources": {
+    "ApplicationLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "LogGroupName"
+        },
+        "RetentionInDays": 30
+      }
+    },
+    "AlarmNotificationTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "DisplayName": "SaaS Compliance CloudWatch alerts"
+      }
+    },
     "Http5xxMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -27,6 +43,7 @@
     },
     "AuthenticationFailureMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -43,6 +60,7 @@
     },
     "AuthorizationDeniedMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -59,6 +77,7 @@
     },
     "S3ExportFailureMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -75,6 +94,7 @@
     },
     "DatabaseExceptionMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -91,6 +111,7 @@
     },
     "RequestCountMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -107,6 +128,7 @@
     },
     "RequestDurationMetricFilter": {
       "Type": "AWS::Logs::MetricFilter",
+      "DependsOn": "ApplicationLogGroup",
       "Properties": {
         "LogGroupName": {
           "Ref": "LogGroupName"
@@ -120,6 +142,141 @@
             "Unit": "Milliseconds"
           }
         ]
+      }
+    },
+    "Http5xxAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "SaasCompliance-Http5xx",
+        "AlarmDescription": "Au moins une réponse HTTP 5xx sur 5 minutes.",
+        "Namespace": "SaasCompliance/Application",
+        "MetricName": "Http5xxCount",
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ]
+      }
+    },
+    "AuthenticationFailureAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "SaasCompliance-AuthenticationFailures",
+        "AlarmDescription": "Au moins cinq échecs d'authentification sur 5 minutes.",
+        "Namespace": "SaasCompliance/Application",
+        "MetricName": "AuthenticationFailureCount",
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 5,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ]
+      }
+    },
+    "AuthorizationDeniedAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "SaasCompliance-AuthorizationDenials",
+        "AlarmDescription": "Au moins dix refus d'accès sur 5 minutes.",
+        "Namespace": "SaasCompliance/Application",
+        "MetricName": "AuthorizationDeniedCount",
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 10,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ]
+      }
+    },
+    "S3ExportFailureAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "SaasCompliance-S3ExportFailures",
+        "AlarmDescription": "Au moins un échec d'export S3 sur 5 minutes.",
+        "Namespace": "SaasCompliance/Application",
+        "MetricName": "S3ExportFailureCount",
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ]
+      }
+    },
+    "DatabaseExceptionAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "SaasCompliance-DatabaseExceptions",
+        "AlarmDescription": "Au moins une exception de base de données sur 5 minutes.",
+        "Namespace": "SaasCompliance/Application",
+        "MetricName": "DatabaseExceptionCount",
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ]
+      }
+    },
+    "RequestDurationAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "SaasCompliance-HighRequestDuration",
+        "AlarmDescription": "Durée moyenne supérieure à 2 secondes sur deux périodes de 5 minutes.",
+        "Namespace": "SaasCompliance/Application",
+        "MetricName": "RequestDurationMs",
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "DatapointsToAlarm": 2,
+        "Threshold": 2000,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ApplicationLogGroupName": {
+      "Description": "CloudWatch Logs group receiving application logs.",
+      "Value": {
+        "Ref": "ApplicationLogGroup"
+      }
+    },
+    "AlarmNotificationTopicArn": {
+      "Description": "SNS topic; create an email subscription and confirm it.",
+      "Value": {
+        "Ref": "AlarmNotificationTopic"
       }
     }
   }
