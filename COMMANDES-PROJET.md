@@ -2,6 +2,8 @@
 
 Ce guide rassemble les commandes usuelles pour mettre à jour, démarrer et vérifier l'application. Les commandes AWS ci-dessous sont prévues pour EC2 avec le rôle d'instance `LabRole`. Ne mettez jamais de clés AWS dans le dépôt ou dans `.env`.
 
+Pour le rapport et les procédures récurrentes, consulter aussi [l'analyse du projet](./ANALYSE-PROJET.md) et le [guide d'exploitation et de test](./PROCEDURES-EXPLOITATION.md).
+
 ## 1. Se connecter à EC2
 
 Depuis PowerShell sur le poste d'administration, ouvrez un tunnel SSH et laissez ce terminal ouvert :
