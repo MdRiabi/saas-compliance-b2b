@@ -24,7 +24,15 @@ Sur EC2, consulter les dernières lignes ainsi :
 tail -n 50 app.log
 ```
 
-Les lignes doivent être des objets JSON individuels. La collecte par CloudWatch Agent et le déploiement des ressources AWS restent à effectuer.
+Les lignes doivent être des objets JSON individuels. La collecte vers CloudWatch Logs dépend du CloudWatch Agent et du groupe de logs configurés pour l'environnement.
+
+## Protection des journaux
+
+Les logs applicatifs évitent les mots de passe, jetons, cookies, adresses e-mail, corps de requête et détails de connexion. Sur EC2, `app.log` doit avoir le mode Unix `600`, afin que seul son propriétaire (le compte Gunicorn, normalement `ec2-user`) et root (CloudWatch Agent) puissent le lire.
+
+Le groupe `/saas-compliance-b2b/app` a une rétention de 30 jours et CloudWatch Logs chiffre les données au repos par défaut avec une clé gérée par AWS. Le modèle CloudFormation conserve le groupe lors de la suppression ou du remplacement de la ressource par la pile. L'accès de l'agent doit rester limité à l'écriture des flux du groupe; la lecture doit être accordée uniquement aux personnes qui en ont besoin.
+
+La rétention et `DeletionPolicy: Retain` ne rendent pas les événements inviolables : un principal autorisé à supprimer des flux, des événements ou le groupe peut toujours le faire directement. Si une conservation WORM est exigée, archiver les événements dans un bucket S3 configuré avec Object Lock et une période de rétention approuvée; ce mécanisme n'est pas activé par la configuration CloudWatch actuelle.
 
 ## Indicateurs, dashboard et alarmes CloudWatch
 

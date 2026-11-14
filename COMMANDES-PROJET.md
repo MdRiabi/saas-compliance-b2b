@@ -198,6 +198,9 @@ Attendez que l'écoute sur `8000` ait disparu. Ne tuez pas le worker séparémen
 ```bash
 cd /home/ec2-user/saas-compliance-b2b
 source venv/bin/activate
+umask 077
+touch app.log
+chmod 600 app.log
 AWS_SHARED_CREDENTIALS_FILE=/dev/null nohup ./venv/bin/gunicorn --workers 1 --bind 127.0.0.1:8000 run:app >> app.log 2>&1 &
 ```
 
@@ -249,6 +252,29 @@ Pour un échec d'export depuis le navigateur, ouvrir **F12 → Network**, sélec
 ## 7. Configurer CloudWatch, indicateurs et alertes
 
 Le rôle EC2 doit pouvoir créer un flux et publier ses événements dans le groupe (`logs:CreateLogStream`, `logs:PutLogEvents`, généralement `logs:DescribeLogStreams`). Le modèle crée le groupe et demande également les permissions CloudFormation, CloudWatch Logs, CloudWatch Alarms et SNS. Les deux permissions de flux seules ne suffisent pas pour déployer le modèle. Si la commande CLI est refusée, essayez dans la console AWS en région `us-east-1` : **CloudFormation → Create stack → With new resources**, puis téléversez le modèle. Si la console refuse aussi, demandez l'aide de l'administrateur du Lab; ne créez pas de clés permanentes.
+
+### Protection des journaux
+
+Le fichier local `app.log` doit être lisible uniquement par le compte qui exécute Gunicorn. Depuis le dépôt sur EC2, vérifier puis appliquer le mode `600` :
+
+```bash
+stat -c '%a %U:%G %n' app.log
+chmod 600 app.log
+stat -c '%a %U:%G %n' app.log
+```
+
+Le modèle configure une rétention de 30 jours et conserve le groupe si la pile est supprimée ou si le groupe devait être remplacé. CloudWatch Logs chiffre les données au repos par défaut avec une clé gérée par AWS; aucun KMS client n'est configuré. L'accès de l'agent doit être limité aux actions de publication nécessaires sur le groupe `/saas-compliance-b2b/app`; l'accès de lecture au groupe doit être réservé aux personnes qui exploitent les journaux.
+
+Vérifier la rétention et l'éventuelle clé KMS associée au groupe :
+
+```bash
+AWS_SHARED_CREDENTIALS_FILE=/dev/null aws logs describe-log-groups \
+  --log-group-name-prefix /saas-compliance-b2b/app \
+  --query 'logGroups[0].{Name:logGroupName,RetentionDays:retentionInDays,KmsKeyId:kmsKeyId}' \
+  --output table
+```
+
+Une valeur `KmsKeyId` vide signifie qu'aucune clé KMS client n'est associée; le chiffrement au repos géré par CloudWatch Logs reste actif. La conservation CloudFormation protège contre une suppression accidentelle par la pile, mais ne rend pas les événements immuables et ne bloque pas un opérateur ayant des permissions directes de suppression. Pour une conservation inviolable, il faudrait concevoir séparément une archive S3 avec Object Lock et ses permissions/règles de rétention.
 
 Depuis la racine du dépôt sur EC2, valider puis déployer le modèle, qui crée le groupe avec 30 jours de rétention, les filtres, six alarmes et le topic SNS :
 
